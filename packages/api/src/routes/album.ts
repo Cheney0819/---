@@ -70,9 +70,10 @@ export async function albumRoutes(app: FastifyInstance) {
   });
   
   // 获取相册详情
-  app.get('/:id', { preHandler: [app.authenticate] }, async (request) => {
+  app.get('/:id', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const { id: userId } = request.user as { id: string };
     const { id } = request.params as { id: string };
-    
+
     const album = await prisma.sharedAlbum.findUnique({
       where: { id },
       include: {
@@ -86,18 +87,47 @@ export async function albumRoutes(app: FastifyInstance) {
         },
       },
     });
-    
-    if (!album) return { error: '相册不存在' };
-    
+
+    if (!album) return reply.status(404).send({ error: '相册不存在' });
+
+    // 验证用户是否属于该相册的配对
+    const pair = await prisma.pair.findFirst({
+      where: {
+        id: album.pairId,
+        OR: [{ userAId: userId }, { userBId: userId }],
+      },
+    });
+
+    if (!pair) {
+      return reply.status(403).send({ error: '无权查看此相册' });
+    }
+
     return { album };
   });
   
   // 上传照片
-  app.post('/:id/photos', { preHandler: [app.authenticate] }, async (request) => {
+  app.post('/:id/photos', { preHandler: [app.authenticate] }, async (request, reply) => {
     const { id: userId } = request.user as { id: string };
     const { id: albumId } = request.params as { id: string };
     const body = addPhotoSchema.parse(request.body);
-    
+
+    // 验证用户是否属于该相册的配对
+    const album = await prisma.sharedAlbum.findUnique({ where: { id: albumId } });
+    if (!album) {
+      return reply.status(404).send({ error: '相册不存在' });
+    }
+
+    const pair = await prisma.pair.findFirst({
+      where: {
+        id: album.pairId,
+        OR: [{ userAId: userId }, { userBId: userId }],
+      },
+    });
+
+    if (!pair) {
+      return reply.status(403).send({ error: '无权在此相册中上传照片' });
+    }
+
     const photo = await prisma.sharedMedia.create({
       data: {
         albumId,
@@ -113,7 +143,7 @@ export async function albumRoutes(app: FastifyInstance) {
         },
       },
     });
-    
+
     return { photo };
   });
   

@@ -103,12 +103,13 @@ export default function ChatPage() {
       }
       
       const { message: newMsg } = await messageApi.send(pairId, encryptedContent, token!);
-      setMessages(prev => [...prev, { ...newMsg, content: message }]);
-      
+      setMessages(prev => [...prev, newMsg]);
+
+      // 通过 WebSocket 通知对方，发送加密内容而非明文
       sendWsMessage({
         type: 'message',
         pairId,
-        message: { ...newMsg, content: message },
+        message: newMsg,
       });
     } catch (err) {
       console.error(err);

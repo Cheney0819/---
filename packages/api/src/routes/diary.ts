@@ -83,9 +83,10 @@ export async function diaryRoutes(app: FastifyInstance) {
   });
   
   // 获取日记详情
-  app.get('/:id', { preHandler: [app.authenticate] }, async (request) => {
+  app.get('/:id', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const { id: userId } = request.user as { id: string };
     const { id } = request.params as { id: string };
-    
+
     const diary = await prisma.sharedDiary.findUnique({
       where: { id },
       include: {
@@ -99,20 +100,49 @@ export async function diaryRoutes(app: FastifyInstance) {
         },
       },
     });
-    
+
     if (!diary) {
-      return { error: '日记不存在' };
+      return reply.status(404).send({ error: '日记不存在' });
     }
-    
+
+    // 验证用户是否属于该日记的配对
+    const pair = await prisma.pair.findFirst({
+      where: {
+        id: diary.pairId,
+        OR: [{ userAId: userId }, { userBId: userId }],
+      },
+    });
+
+    if (!pair) {
+      return reply.status(403).send({ error: '无权查看此日记' });
+    }
+
     return { diary };
   });
   
   // 添加日记条目
-  app.post('/:id/entries', { preHandler: [app.authenticate] }, async (request) => {
+  app.post('/:id/entries', { preHandler: [app.authenticate] }, async (request, reply) => {
     const { id: userId } = request.user as { id: string };
     const { id: diaryId } = request.params as { id: string };
     const body = addEntrySchema.parse(request.body);
-    
+
+    // 验证用户是否属于该日记的配对
+    const diary = await prisma.sharedDiary.findUnique({ where: { id: diaryId } });
+    if (!diary) {
+      return reply.status(404).send({ error: '日记不存在' });
+    }
+
+    const pair = await prisma.pair.findFirst({
+      where: {
+        id: diary.pairId,
+        OR: [{ userAId: userId }, { userBId: userId }],
+      },
+    });
+
+    if (!pair) {
+      return reply.status(403).send({ error: '无权在此日记中写条目' });
+    }
+
     const entry = await prisma.diaryEntry.create({
       data: {
         diaryId,
@@ -128,7 +158,7 @@ export async function diaryRoutes(app: FastifyInstance) {
         },
       },
     });
-    
+
     return { entry };
   });
   

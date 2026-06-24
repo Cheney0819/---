@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { MessageIcon } from '@/components/icons';
 
@@ -21,7 +22,7 @@ const PairCard: React.FC<PairCardProps> = React.memo(({ pair, currentUserId, ind
   const chatUrl = `/chat/${pair.id}`;
 
   return (
-    <a 
+    <Link
       href={chatUrl}
       style={{ display: 'block', textDecoration: 'none' }}
     >
@@ -63,7 +64,7 @@ const PairCard: React.FC<PairCardProps> = React.memo(({ pair, currentUserId, ind
           <polyline points="9 18 15 12 9 6" />
         </svg>
       </div>
-    </a>
+    </Link>
   );
 });
 

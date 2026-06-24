@@ -86,7 +86,7 @@ export async function pairRoutes(app: FastifyInstance) {
   });
   
   // 获取配对详情
-  app.get('/:id', { preHandler: [app.authenticate] }, async (request) => {
+  app.get('/:id', { preHandler: [app.authenticate] }, async (request, reply) => {
     const { id: userId } = request.user as { id: string };
     const { id } = request.params as { id: string };
     
@@ -109,7 +109,7 @@ export async function pairRoutes(app: FastifyInstance) {
     });
     
     if (!pair) {
-      return { error: '配对不存在' };
+      return reply.status(404).send({ error: '配对不存在' });
     }
     
     return { pair };

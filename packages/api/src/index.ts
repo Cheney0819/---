@@ -31,7 +31,7 @@ app.decorate('authenticate', async (request: any, reply: any) => {
   try {
     await request.jwtVerify();
   } catch (err) {
-    reply.status(401).send({ error: 'Unauthorized' });
+    return reply.status(401).send({ error: '未登录或登录已过期' });
   }
 });
 
@@ -42,8 +42,13 @@ async function setupApp() {
     credentials: true,
   });
 
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) {
+    console.error('缺少 JWT_SECRET 环境变量，服务无法启动');
+    process.exit(1);
+  }
   await app.register(jwt, {
-    secret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+    secret: jwtSecret,
   });
 
   await app.register(authRoutes, { prefix: '/api/auth' });

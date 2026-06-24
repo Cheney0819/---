@@ -14,11 +14,13 @@ const sendMessageSchema = z.object({
 
 export async function messageRoutes(app: FastifyInstance) {
   // 获取消息历史
-  app.get('/:pairId', { preHandler: [app.authenticate] }, async (request) => {
+  app.get('/:pairId', { preHandler: [app.authenticate] }, async (request, reply) => {
     const { id: userId } = request.user as { id: string };
     const { pairId } = request.params as { pairId: string };
-    const { page = 1, limit = PAGINATION_CONSTANTS.DEFAULT_PAGE_SIZE } = 
-      request.query as { page?: number; limit?: number };
+    const { page: rawPage = '1', limit: rawLimit = String(PAGINATION_CONSTANTS.DEFAULT_PAGE_SIZE) } =
+      request.query as { page?: string; limit?: string };
+    const page = Math.max(1, parseInt(rawPage, 10) || 1);
+    const limit = Math.min(PAGINATION_CONSTANTS.MAX_PAGE_SIZE, Math.max(1, parseInt(rawLimit, 10) || PAGINATION_CONSTANTS.DEFAULT_PAGE_SIZE));
     
     const skip = (page - 1) * limit;
     
@@ -34,7 +36,7 @@ export async function messageRoutes(app: FastifyInstance) {
     });
     
     if (!pair) {
-      return { error: '配对不存在' };
+      return reply.status(404).send({ error: '配对不存在' });
     }
     
     const [messages, total] = await Promise.all([
@@ -121,14 +123,30 @@ export async function messageRoutes(app: FastifyInstance) {
   });
   
   // 标记已读
-  app.put('/:id/read', { preHandler: [app.authenticate] }, async (request) => {
+  app.put('/:id/read', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const { id: userId } = request.user as { id: string };
     const { id } = request.params as { id: string };
-    
+
+    // 验证该消息的接收者是否是当前用户
+    const message = await prisma.message.findUnique({
+      where: { id },
+      include: { pair: true },
+    });
+
+    if (!message) {
+      return reply.status(404).send({ error: '消息不存在' });
+    }
+
+    const isReceiver = message.pair.userAId === userId || message.pair.userBId === userId;
+    if (message.senderId === userId || !isReceiver) {
+      return reply.status(403).send({ error: '无权标记此消息' });
+    }
+
     await prisma.message.update({
       where: { id },
       data: { readAt: new Date() },
     });
-    
+
     return { success: true };
   });
   

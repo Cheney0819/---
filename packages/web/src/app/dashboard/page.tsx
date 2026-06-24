@@ -33,19 +33,14 @@ export default function DashboardPage() {
   const [pageReady, setPageReady] = useState(false);
   const router = useRouter();
 
-  useEffect(() => {
-    window.history.pushState(null, '', window.location.href);
-    const handlePopState = () => window.history.pushState(null, '', window.location.href);
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
 
   useEffect(() => {
     if (!isAuthenticated) { router.replace('/login'); return; }
     loadPairs();
     loadStartDate();
     updateGreeting();
-    setTimeout(() => setPageReady(true), 1500);
+    setTimeout(() => setPageReady(true), 800);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
   const updateGreeting = () => {
