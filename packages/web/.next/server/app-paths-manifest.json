@@ -1,0 +1,15 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/album/page": "app/album/page.js",
+  "/chat/[pairId]/page": "app/chat/[pairId]/page.js",
+  "/login/page": "app/login/page.js",
+  "/diary/page": "app/diary/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/page": "app/page.js",
+  "/capsules/page": "app/capsules/page.js",
+  "/settings/page": "app/settings/page.js",
+  "/timeline/page": "app/timeline/page.js",
+  "/register/page": "app/register/page.js",
+  "/search/page": "app/search/page.js",
+  "/profile/page": "app/profile/page.js"
+}
