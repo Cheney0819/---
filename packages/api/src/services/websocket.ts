@@ -3,10 +3,7 @@ import { FastifyInstance } from 'fastify';
 import { prisma } from '../index';
 
 // 在线用户映射
-const onlineUsers = new Map<string, WebSocket>();
-
-// 用户与 WebSocket 映射
-const userSockets = new Map<string, WebSocket>();
+const onlineUsers = new Map<string, any>();
 
 export function setupWebSocket(app: FastifyInstance) {
   app.get('/ws', { websocket: true } as any, (socket: any, request: any) => {
@@ -28,7 +25,6 @@ export function setupWebSocket(app: FastifyInstance) {
               const decoded = app.jwt.verify(data.token) as { id: string; username: string };
               userId = decoded.id;
               onlineUsers.set(userId, socket);
-              userSockets.set(userId, socket);
               socket.send(JSON.stringify({ type: 'auth_success', userId }));
               broadcastToPartner(userId, { type: 'user_online', userId });
             } catch (error) {
@@ -85,7 +81,6 @@ export function setupWebSocket(app: FastifyInstance) {
     socket.on('close', () => {
       if (userId) {
         onlineUsers.delete(userId);
-        userSockets.delete(userId);
         broadcastToPartner(userId, { type: 'user_offline', userId });
       }
     });
@@ -94,7 +89,7 @@ export function setupWebSocket(app: FastifyInstance) {
 
 export function sendToUser(userId: string, data: any) {
   const socket = onlineUsers.get(userId);
-  if (socket && socket.readyState === WebSocket.OPEN) {
+  if (socket && socket.readyState === 1) {
     socket.send(JSON.stringify(data));
   }
 }
