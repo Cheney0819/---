@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============ 用户 ============
+model User {
+  id            String    @id @default(cuid())
+  username      String    @unique
+  displayName   String?
+  email         String    @unique
+  password      String
+  inviteCode    String    @unique @default("")
+  avatarUrl     String?
+  platform      String    @default("web") // android | ios | web
+  deviceToken   String?   // FCM token
+  publicKey     String?   // Signal 公钥
+  identityKey   String?   // Signal 身份密钥
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  pairsA        Pair[]    @relation("PairA")
+  pairsB        Pair[]    @relation("PairB")
+  messages      Message[]
+  sentCapsules  TimeCapsule[] @relation("CapsuleSender")
+  recvCapsules  TimeCapsule[] @relation("CapsuleReceiver")
+  diaryEntries  DiaryEntry[]
+  uploadedMedia SharedMedia[]
+  preKeys       PreKey[]
+}
+
+// ============ 配对关系 ============
+model Pair {
+  id          String   @id @default(cuid())
+  status      String   @default("active") // active | inactive
+  createdAt   DateTime @default(now())
+
+  userA       User     @relation("PairA", fields: [userAId], references: [id])
+  userAId     String
+  userB       User     @relation("PairB", fields: [userBId], references: [id])
+  userBId     String
+
+  messages    Message[]
+  capsules    TimeCapsule[]
+  diaries     SharedDiary[]
+  albums      SharedAlbum[]
+
+  @@unique([userAId, userBId])
+  @@index([userAId])
+  @@index([userBId])
+}
+
+// ============ 消息 ============
+model Message {
+  id          String   @id @default(cuid())
+  content     String   // 加密后的内容
+  contentType String   @default("text") // text | image | voice
+  mediaUrls Json // 加密后的媒体 URL
+  createdAt   DateTime @default(now())
+  readAt      DateTime?
+  deletedAt   DateTime?
+
+  pair        Pair     @relation(fields: [pairId], references: [id])
+  pairId      String
+  sender      User     @relation(fields: [senderId], references: [id])
+  senderId    String
+
+  @@index([pairId, createdAt])
+  @@index([senderId])
+}
+
+// ============ 时间胶囊 ============
+model TimeCapsule {
+  id              String    @id @default(cuid())
+  content         String    // 加密后的内容
+  mediaUrls Json
+  triggerTime     DateTime  // 触发时间
+  triggerCondition Json?    // 可选触发条件
+  status          String    @default("pending") // pending | delivered | read
+  createdAt       DateTime  @default(now())
+  deliveredAt     DateTime?
+  readAt          DateTime?
+
+  pair            Pair      @relation(fields: [pairId], references: [id])
+  pairId          String
+  sender          User      @relation("CapsuleSender", fields: [senderId], references: [id])
+  senderId        String
+  receiver        User      @relation("CapsuleReceiver", fields: [receiverId], references: [id])
+  receiverId      String
+
+  @@index([receiverId, status])
+  @@index([triggerTime, status])
+}
+
+// ============ 共享日记 ============
+model SharedDiary {
+  id        String   @id @default(cuid())
+  title     String
+  createdAt DateTime @default(now())
+
+  pair      Pair     @relation(fields: [pairId], references: [id])
+  pairId    String
+  entries   DiaryEntry[]
+}
+
+// ============ 日记条目 ============
+model DiaryEntry {
+  id        String   @id @default(cuid())
+  content   String   // 加密后的内容
+  mood      String?  // 心情
+  weather   String?  // 天气
+  tags Json
+  createdAt DateTime @default(now())
+
+  diary     SharedDiary @relation(fields: [diaryId], references: [id])
+  diaryId   String
+  author    User        @relation(fields: [authorId], references: [id])
+  authorId  String
+
+  @@index([diaryId, createdAt])
+}
+
+// ============ 共享相册 ============
+model SharedAlbum {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+
+  pair        Pair     @relation(fields: [pairId], references: [id])
+  pairId      String
+  media       SharedMedia[]
+}
+
+// ============ 共享媒体 ============
+model SharedMedia {
+  id           String   @id @default(cuid())
+  url          String   // 加密后的 URL
+  thumbnailUrl String?
+  mediaType    String   // image | video
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  album        SharedAlbum @relation(fields: [albumId], references: [id])
+  albumId      String
+  uploader     User        @relation(fields: [uploaderId], references: [id])
+  uploaderId   String
+
+  @@index([albumId, createdAt])
+}
+
+// ============ 预密钥 ============
+model PreKey {
+  id        String   @id @default(cuid())
+  keyId     Int
+  publicKey String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+
+  @@unique([userId, keyId])
+  @@index([userId])
+}

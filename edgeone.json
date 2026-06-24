@@ -1,5 +1,5 @@
 {
   "buildCommand": "npm run build --workspace=packages/web",
   "outputDirectory": "packages/web/.next",
-  "installCommand": "npm install"
+  "installCommand": "npm install && npx prisma generate --schema=packages/web/prisma/schema.prisma"
 }

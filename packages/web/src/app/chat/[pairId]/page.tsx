@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { messageApi, pairApi, keysApi } from '@/lib/api';
-import { useWebSocket } from '@/hooks/useWebSocket';
+import { useRealtimeChat } from '@/hooks/useRealtimeChat';
 import { useEncryption } from '@/contexts/EncryptionContext';
 import { FadeIn } from '@/components/motion';
 import { BackIcon, ShieldIcon, MoreIcon } from '@/components/icons';
@@ -26,32 +26,14 @@ export default function ChatPage() {
   const params = useParams();
   const pairId = (params?.pairId as string) || "";
 
-  // WebSocket 消息处理
-  const handleWebSocketMessage = useCallback((data: any) => {
-    switch (data.type) {
-      case 'new_message':
-        if (data.pairId === pairId && data.message) {
-          setMessages(prev => [...prev, data.message]);
-        }
-        break;
-      case 'user_online':
-        setPartnerOnline(true);
-        break;
-      case 'user_offline':
-        setPartnerOnline(false);
-        break;
-      case 'typing':
-        setPartnerTyping(data.isTyping);
-        break;
-      case 'message_read':
-        setMessages(prev => prev.map(msg => 
-          msg.id === data.messageId ? { ...msg, readAt: new Date() } : msg
-        ));
-        break;
+  // 轮询消息处理
+  const handleWsMessage = useCallback((data: any) => {
+    if (data.type === 'new_message' && data.pairId === pairId && data.message) {
+      setMessages(prev => [...prev, data.message]);
     }
   }, [pairId]);
 
-  const { sendMessage: sendWsMessage } = useWebSocket(handleWebSocketMessage);
+  const { sendTyping } = useRealtimeChat(pairId, handleWsMessage);
   const { encrypt } = useEncryption();
 
   useEffect(() => {
@@ -104,20 +86,13 @@ export default function ChatPage() {
       
       const { message: newMsg } = await messageApi.send(pairId, encryptedContent, token!);
       setMessages(prev => [...prev, newMsg]);
-
-      // 通过 WebSocket 通知对方，发送加密内容而非明文
-      sendWsMessage({
-        type: 'message',
-        pairId,
-        message: newMsg,
-      });
     } catch (err) {
       console.error(err);
     }
   };
 
   const handleTyping = (isTyping: boolean) => {
-    sendWsMessage({ type: 'typing', pairId, isTyping });
+    sendTyping(isTyping);
   };
 
   if (!isAuthenticated) return null;

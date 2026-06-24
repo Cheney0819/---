@@ -1,10 +1,7 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
 import './globals.css'
 import { PageLoader } from '@/components/PageLoader'
 import PageTransition from '@/components/PageTransition'
-
-const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: '时光笺',
@@ -32,7 +29,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <link rel="apple-touch-icon" href="/icon-192.svg" />
       </head>
-      <body className={inter.className}>
+      <body className="font-sans">
         <PageLoader />
         <PageTransition>
           {children}
