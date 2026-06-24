@@ -11,5 +11,9 @@
     "dev:mobile": "npm run dev --workspace=packages/mobile",
     "build": "npm run build --workspaces",
     "lint": "npm run lint --workspaces"
+  },
+  "overrides": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
   }
 }

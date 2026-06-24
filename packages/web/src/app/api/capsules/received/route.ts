@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { getAuthUser, AuthError } from '@/lib/auth';
 import { checkAndTriggerCapsules } from '@/lib/scheduler';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const auth = await getAuthUser(request);
