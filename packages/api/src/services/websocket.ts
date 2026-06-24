@@ -1,4 +1,4 @@
-import { WebSocket } from 'ws';
+import WebSocket from 'ws';
 import { FastifyInstance } from 'fastify';
 import { prisma } from '../index';
 
@@ -9,16 +9,15 @@ const onlineUsers = new Map<string, WebSocket>();
 const userSockets = new Map<string, WebSocket>();
 
 export function setupWebSocket(app: FastifyInstance) {
-  app.get('/ws', { websocket: true }, (socket, request) => {
+  app.get('/ws', { websocket: true } as any, (socket: any, request: any) => {
     let userId: string | null = null;
 
-    socket.on('message', async (message) => {
+    socket.on('message', async (message: any) => {
       try {
         const data = JSON.parse(message.toString());
         
         switch (data.type) {
           case 'auth':
-            // 验证 JWT Token
             if (!data.token) {
               socket.send(JSON.stringify({ type: 'auth_error', error: 'Token required' }));
               socket.close();
@@ -31,8 +30,6 @@ export function setupWebSocket(app: FastifyInstance) {
               onlineUsers.set(userId, socket);
               userSockets.set(userId, socket);
               socket.send(JSON.stringify({ type: 'auth_success', userId }));
-              
-              // 通知对方用户上线
               broadcastToPartner(userId, { type: 'user_online', userId });
             } catch (error) {
               socket.send(JSON.stringify({ type: 'auth_error', error: 'Invalid token' }));
@@ -41,7 +38,6 @@ export function setupWebSocket(app: FastifyInstance) {
             break;
 
           case 'message':
-            // 转发消息给对方
             if (userId && data.pairId) {
               const pair = await prisma.pair.findUnique({ where: { id: data.pairId } });
               if (pair) {
@@ -56,7 +52,6 @@ export function setupWebSocket(app: FastifyInstance) {
             break;
 
           case 'typing':
-            // 转发输入状态
             if (userId && data.pairId) {
               const pair = await prisma.pair.findUnique({ where: { id: data.pairId } });
               if (pair) {
@@ -71,7 +66,6 @@ export function setupWebSocket(app: FastifyInstance) {
             break;
 
           case 'read':
-            // 转发已读状态
             if (userId && data.messageId) {
               const message = await prisma.message.findUnique({ where: { id: data.messageId } });
               if (message) {
@@ -92,14 +86,12 @@ export function setupWebSocket(app: FastifyInstance) {
       if (userId) {
         onlineUsers.delete(userId);
         userSockets.delete(userId);
-        // 通知对方用户离线
         broadcastToPartner(userId, { type: 'user_offline', userId });
       }
     });
   });
 }
 
-// 发送消息给指定用户
 export function sendToUser(userId: string, data: any) {
   const socket = onlineUsers.get(userId);
   if (socket && socket.readyState === WebSocket.OPEN) {
@@ -107,7 +99,6 @@ export function sendToUser(userId: string, data: any) {
   }
 }
 
-// 广播给配对的另一方
 async function broadcastToPartner(userId: string, data: any) {
   const pairs = await prisma.pair.findMany({
     where: {
@@ -124,7 +115,6 @@ async function broadcastToPartner(userId: string, data: any) {
   }
 }
 
-// 检查用户是否在线
 export function isUserOnline(userId: string): boolean {
   return onlineUsers.has(userId);
 }
