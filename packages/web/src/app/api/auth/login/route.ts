@@ -79,7 +79,13 @@ export async function POST(request: NextRequest) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors[0].message }, { status: 400 });
     }
-    console.error('Login error:', error);
+    // 详细错误信息，方便排查
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : '';
+    console.error('Login error:', errorMsg);
+    if (errorStack) console.error('Stack:', errorStack);
+    console.error('DATABASE_URL set:', !!process.env.DATABASE_URL);
+    console.error('JWT_SECRET set:', !!process.env.JWT_SECRET);
     return NextResponse.json({ error: '服务器错误' }, { status: 500 });
   }
 }
