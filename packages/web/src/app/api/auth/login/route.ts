@@ -9,8 +9,45 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+// 简单内存速率限制（生产环境建议用 Redis）
+const loginAttempts = new Map<string, number[]>();
+
+function getRateLimit(clientIp: string): boolean {
+  const now = Date.now();
+  const windowMs = 60 * 1000; // 1 分钟窗口
+  const maxRequests = 5;
+
+  const timestamps = loginAttempts.get(clientIp) || [];
+  const recent = timestamps.filter(t => now - t < windowMs);
+
+  if (recent.length >= maxRequests) {
+    return false;
+  }
+
+  recent.push(now);
+  loginAttempts.set(clientIp, recent);
+  return true;
+}
+
+// 定期清理过期记录
+setInterval(() => {
+  for (const [ip, timestamps] of loginAttempts.entries()) {
+    const filtered = timestamps.filter(t => Date.now() - t < 60 * 1000);
+    if (filtered.length === 0) {
+      loginAttempts.delete(ip);
+    } else {
+      loginAttempts.set(ip, filtered);
+    }
+  }
+}, 60 * 1000);
+
 export async function POST(request: NextRequest) {
   try {
+    const clientIp = request.headers.get('x-forwarded-for') || 'unknown';
+    if (!getRateLimit(clientIp)) {
+      return NextResponse.json({ error: '请求过于频繁，请稍后再试' }, { status: 429 });
+    }
+
     const body = loginSchema.parse(await request.json());
 
     const user = await prisma.user.findUnique({ where: { email: body.email } });

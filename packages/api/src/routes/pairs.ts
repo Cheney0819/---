@@ -37,27 +37,36 @@ export async function pairRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: '对方已经配对了' });
     }
     
-    // 确保 userAId < userBId
-    const [userAId, userBId] = userId < partnerId 
-      ? [userId, partnerId] 
-      : [partnerId, userId];
+    // 确保 userAId < userBId（使用 Buffer.compare 保证确定性排序）
+    const [userAId, userBId] = Buffer.compare(
+      Buffer.from(userId),
+      Buffer.from(partnerId)
+    ) < 0 ? [userId, partnerId] : [partnerId, userId];
     
-    const pair = await prisma.pair.create({
-      data: {
-        userAId,
-        userBId,
-      },
-      include: {
-        userA: {
-          select: { id: true, username: true, displayName: true, avatarUrl: true },
+    try {
+      const pair = await prisma.pair.create({
+        data: {
+          userAId,
+          userBId,
         },
-        userB: {
-          select: { id: true, username: true, displayName: true, avatarUrl: true },
+        include: {
+          userA: {
+            select: { id: true, username: true, displayName: true, avatarUrl: true },
+          },
+          userB: {
+            select: { id: true, username: true, displayName: true, avatarUrl: true },
+          },
         },
-      },
-    });
-    
-    return { pair };
+      });
+      
+      return { pair };
+    } catch (error: any) {
+      // 捕获 P2002 唯一约束冲突（TOCTOU 竞态条件保护）
+      if (error?.code === 'P2002') {
+        return reply.status(409).send({ error: '配对创建失败，可能已存在重复配对' });
+      }
+      throw error;
+    }
   });
   
   // 获取我的配对

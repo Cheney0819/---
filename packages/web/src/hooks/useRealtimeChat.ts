@@ -24,6 +24,7 @@ export function useRealtimeChat(pairId: string, onMessage: MessageHandler) {
   const pollRef = useRef<NodeJS.Timeout>();
   const onMessageRef = useRef<MessageHandler>(onMessage);
   onMessageRef.current = onMessage;
+  const visibleRef = useRef(true);
 
   const poll = useCallback(async () => {
     try {
@@ -63,8 +64,18 @@ export function useRealtimeChat(pairId: string, onMessage: MessageHandler) {
     poll();
     pollRef.current = setInterval(poll, 2000);
 
+    const handleVisibilityChange = () => {
+      visibleRef.current = !document.hidden;
+      if (visibleRef.current) {
+        poll();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [poll]);
 

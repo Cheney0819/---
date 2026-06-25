@@ -13,8 +13,10 @@ export async function api<T = any>(path: string, options: RequestOptions = {}): 
     'Content-Type': 'application/json',
   };
   
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+  // Support both direct token string and extracted from stored auth object
+  const authToken = typeof token === 'string' ? token : (token as any)?.token;
+  if (authToken) {
+    headers['Authorization'] = `Bearer ${authToken}`;
   }
 
   console.log(`[API] ${method} ${API_BASE}${path}`);
@@ -28,7 +30,6 @@ export async function api<T = any>(path: string, options: RequestOptions = {}): 
   console.log(`[API] Response: ${response.status}`);
   
   const data = await response.json();
-  console.log(`[API] Data:`, data);
   
   if (!response.ok) {
     throw new Error(data.error || 'Request failed');

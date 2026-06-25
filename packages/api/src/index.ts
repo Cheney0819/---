@@ -11,6 +11,7 @@ import { diaryRoutes } from './routes/diary';
 import { albumRoutes } from './routes/album';
 import { startScheduler } from './services/scheduler';
 import { setupWebSocket } from './services/websocket';
+import { SECURITY_CONSTANTS } from './constants';
 
 // ============ Prisma 客户端 ============
 export const prisma = new PrismaClient();
@@ -37,8 +38,23 @@ app.decorate('authenticate', async (request: any, reply: any) => {
 
 // ============ 注册插件和路由 ============
 async function setupApp() {
+  // CORS: 生产环境通过 ALLOWED_ORIGINS 环境变量配置（逗号分隔的域名列表）
+  // 开发环境默认为 localhost 各种端口
+  const allowedOriginsEnv = process.env.ALLOWED_ORIGINS;
+  let corsOrigin: string[] | boolean;
+  if (allowedOriginsEnv && allowedOriginsEnv.trim()) {
+    corsOrigin = allowedOriginsEnv.split(',').map(o => o.trim()).filter(Boolean);
+  } else {
+    corsOrigin = [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:3001',
+    ];
+  }
+
   await app.register(cors, {
-    origin: true,
+    origin: corsOrigin,
     credentials: true,
   });
 
@@ -49,6 +65,16 @@ async function setupApp() {
   }
   await app.register(jwt, {
     secret: jwtSecret,
+    sign: {
+      alg: 'HS256',
+      issuer: 'shiguangjian',
+      audience: 'shiguangjian-api',
+    },
+    verify: {
+      algorithms: ['HS256'],
+      issuer: 'shiguangjian',
+      audience: 'shiguangjian-api',
+    },
   });
 
   await app.register(authRoutes, { prefix: '/api/auth' });
@@ -66,7 +92,7 @@ async function setupApp() {
 
   // 健康检查
   app.get('/health', async () => {
-    return { status: 'ok', timestamp: new Date().toISOString() };
+    return { status: 'ok' };
   });
 }
 

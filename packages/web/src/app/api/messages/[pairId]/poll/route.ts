@@ -46,3 +46,32 @@ export async function GET(request: NextRequest, { params }: { params: { pairId: 
     return NextResponse.json({ error: '服务器错误' }, { status: 500 });
   }
 }
+
+export async function POST(request: NextRequest, { params }: { params: { pairId: string } }) {
+  try {
+    const auth = await getAuthUser(request);
+    const body = await request.json();
+
+    if (body.type !== 'typing') {
+      return NextResponse.json({ error: '不支持的操作' }, { status: 400 });
+    }
+
+    // 验证配对关系
+    const pair = await prisma.pair.findFirst({
+      where: {
+        id: params.pairId,
+        OR: [{ userAId: auth.id }, { userBId: auth.id }],
+      },
+    });
+
+    if (!pair) {
+      return NextResponse.json({ error: '配对不存在' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 });
+    console.error('Poll typing error:', error);
+    return NextResponse.json({ error: '服务器错误' }, { status: 500 });
+  }
+}

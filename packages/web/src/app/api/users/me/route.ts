@@ -13,9 +13,13 @@ export async function PUT(request: NextRequest) {
     const auth = await getAuthUser(request);
     const body = updateSchema.parse(await request.json());
 
+    const updateData: { displayName?: string; avatarUrl?: string } = {};
+    if (body.displayName !== undefined) updateData.displayName = body.displayName;
+    if (body.avatarUrl !== undefined) updateData.avatarUrl = body.avatarUrl;
+
     const user = await prisma.user.update({
       where: { id: auth.id },
-      data: body,
+      data: updateData,
       select: { id: true, username: true, displayName: true, email: true, inviteCode: true, avatarUrl: true, platform: true },
     });
 

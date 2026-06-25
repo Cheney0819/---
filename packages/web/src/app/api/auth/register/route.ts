@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
@@ -14,7 +15,7 @@ const registerSchema = z.object({
 });
 
 function generateInviteCode(): string {
-  return Math.random().toString(36).substring(2, 6).toUpperCase();
+  return crypto.randomBytes(4).toString('hex').toUpperCase().substring(0, 8);
 }
 
 export async function POST(request: NextRequest) {
@@ -25,10 +26,7 @@ export async function POST(request: NextRequest) {
       where: { OR: [{ username: body.username }, { email: body.email }] },
     });
     if (existingUser) {
-      if (existingUser.username === body.username) {
-        return NextResponse.json({ error: '用户名已被占用' }, { status: 409 });
-      }
-      return NextResponse.json({ error: '邮箱已被注册' }, { status: 409 });
+      return NextResponse.json({ error: '用户名或邮箱已被注册' }, { status: 409 });
     }
 
     const hashedPassword = await bcrypt.hash(body.password, USER_CONSTANTS.BCRYPT_SALT_ROUNDS);

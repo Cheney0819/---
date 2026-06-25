@@ -68,7 +68,7 @@ export const PUSH_CONSTANTS = {
 
 // ============ 安全 ============
 export const SECURITY_CONSTANTS = {
-  JWT_EXPIRY_HOURS: 24 * 30,
+  JWT_EXPIRY_HOURS: 24,
   REFRESH_TOKEN_EXPIRY_DAYS: 90,
   MAX_LOGIN_ATTEMPTS: 5,
   LOCKOUT_DURATION_MINUTES: 15,

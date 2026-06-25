@@ -1,4 +1,5 @@
 import React from 'react';
+import { Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -10,10 +11,10 @@ const queryClient = new QueryClient();
 
 function HomeScreen() {
   return (
-    <div style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0d1117' }}>
-      <h1 style={{ color: '#fff', fontSize: 24, fontWeight: 'bold' }}>时光笺</h1>
-      <p style={{ color: '#888' }}>你和 ta 的私密空间</p>
-    </div>
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0d1117' }}>
+      <Text style={{ color: '#fff', fontSize: 24, fontWeight: 'bold' }}>时光笺</Text>
+      <Text style={{ color: '#888' }}>你和 ta 的私密空间</Text>
+    </View>
   );
 }
 

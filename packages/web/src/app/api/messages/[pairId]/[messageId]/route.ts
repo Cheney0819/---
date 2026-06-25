@@ -17,12 +17,20 @@ export async function DELETE(
       return NextResponse.json({ error: '消息不存在' }, { status: 404 });
     }
 
-    if (message.senderId !== auth.id) {
+    if (message.pairId !== params.pairId) {
+      return NextResponse.json({ error: '消息不属于此配对' }, { status: 400 });
+    }
+
+    const pair = await prisma.pair.findUnique({
+      where: { id: params.pairId },
+    });
+
+    if (!pair || (pair.userAId !== auth.id && pair.userBId !== auth.id)) {
       return NextResponse.json({ error: '无权删除此消息' }, { status: 403 });
     }
 
-    if (message.pairId !== params.pairId) {
-      return NextResponse.json({ error: '消息不属于此配对' }, { status: 400 });
+    if (message.senderId !== auth.id) {
+      return NextResponse.json({ error: '无权删除此消息' }, { status: 403 });
     }
 
     await prisma.message.update({

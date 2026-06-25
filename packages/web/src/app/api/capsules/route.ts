@@ -10,7 +10,7 @@ const createCapsuleSchema = z.object({
   content: z.string().max(CAPSULE_CONSTANTS.CONTENT_MAX_LENGTH),
   mediaUrls: z.array(z.string()).max(CAPSULE_CONSTANTS.MEDIA_MAX_COUNT).optional(),
   triggerTime: z.string().datetime(),
-  triggerCondition: z.any().optional(),
+  triggerCondition: z.record(z.unknown()).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -53,9 +53,9 @@ export async function POST(request: NextRequest) {
         senderId: auth.id,
         receiverId: body.receiverId,
         content: body.content,
-        mediaUrls: body.mediaUrls || [],
+        mediaUrls: (body.mediaUrls ?? []) as any,
         triggerTime,
-        triggerCondition: body.triggerCondition,
+        triggerCondition: (body.triggerCondition ?? null) as any,
       },
     });
 

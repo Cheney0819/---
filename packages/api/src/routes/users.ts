@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
-import { z } from 'zod';
 import { prisma } from '../index';
+import { rateLimit } from '../middleware/ratelimit';
 
 export async function userRoutes(app: FastifyInstance) {
   // 更新设备令牌 (FCM)
@@ -21,9 +21,18 @@ export async function userRoutes(app: FastifyInstance) {
     const { id } = request.user as { id: string };
     const body = request.body as { displayName?: string; avatarUrl?: string };
     
+    // Fix 15: 显式构建更新对象（防 IDOR）
+    const updateData: { displayName?: string; avatarUrl?: string } = {};
+    if (body.displayName !== undefined) {
+      updateData.displayName = body.displayName;
+    }
+    if (body.avatarUrl !== undefined) {
+      updateData.avatarUrl = body.avatarUrl;
+    }
+    
     const user = await prisma.user.update({
       where: { id },
-      data: body,
+      data: updateData,
       select: {
         id: true,
         username: true,
@@ -37,7 +46,8 @@ export async function userRoutes(app: FastifyInstance) {
   });
   
   // 搜索用户
-  app.get('/search', { preHandler: [app.authenticate] }, async (request) => {
+  app.get('/search', { preHandler: [app.authenticate, rateLimit] }, async (request) => {
+    // Fix 9: 搜索接口添加速率限制
     const { q } = request.query as { q: string };
     
     const users = await prisma.user.findMany({
@@ -60,9 +70,14 @@ export async function userRoutes(app: FastifyInstance) {
   });
 
   // 上传公钥
-  app.put('/me/keys', { preHandler: [app.authenticate] }, async (request) => {
+  app.put('/me/keys', { preHandler: [app.authenticate] }, async (request, reply) => {
     const { id: userId } = request.user as { id: string };
     const { publicKey } = request.body as { publicKey: string };
+    
+    // Fix 13: 公钥长度验证（最大 1024 字节）
+    if (Buffer.byteLength(publicKey, 'utf-8') > 1024) {
+      return reply.status(400).send({ error: '公钥过长' });
+    }
     
     await prisma.user.update({
       where: { id: userId },
@@ -89,7 +104,7 @@ export async function userRoutes(app: FastifyInstance) {
   });
 
   // 通过识别码查找用户
-  app.get('/by-code/:code', { preHandler: [app.authenticate] }, async (request) => {
+  app.get('/by-code/:code', { preHandler: [app.authenticate] }, async (request, reply) => {
     const { code } = request.params as { code: string };
     
     const user = await prisma.user.findUnique({
@@ -97,8 +112,9 @@ export async function userRoutes(app: FastifyInstance) {
       select: { id: true, username: true, displayName: true, inviteCode: true },
     });
     
+    // Fix 14: 统一返回消息，防止枚举
     if (!user) {
-      return { error: '未找到该用户' };
+      return reply.status(404).send({ error: '用户不存在' });
     }
     
     return { user };

@@ -122,24 +122,97 @@ export async function initEncryption(userId: string): Promise<{
   const keyPair = await generateKeyPair();
   const publicKey = await exportPublicKey(keyPair.publicKey);
   
-  // 存储私钥到 localStorage
+  // 用 PBKDF2 派生包装密钥，AES-GCM 加密后存储
   const privateKeyJwk = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
-  localStorage.setItem(`private_key_${userId}`, JSON.stringify(privateKeyJwk));
+  const wrappedKey = await deriveStorageKey(userId);
+  const encoder = new TextEncoder();
+  const nonce = crypto.getRandomValues(new Uint8Array(12));
+  const encryptedBuf = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: nonce },
+    wrappedKey,
+    encoder.encode(JSON.stringify(privateKeyJwk))
+  );
+  const combined = new Uint8Array(nonce.length + encryptedBuf.byteLength);
+  combined.set(nonce);
+  combined.set(new Uint8Array(encryptedBuf), nonce.length);
+  localStorage.setItem(`private_key_${userId}`, btoa(String.fromCharCode(...combined)));
   
   return { publicKey, privateKey: keyPair.privateKey };
 }
 
-// 获取私钥
+// 获取私钥 — Fix: 兼容旧用户未加密的 JWK 格式私钥
 export async function getPrivateKey(userId: string): Promise<CryptoKey | null> {
-  const jwkStr = localStorage.getItem(`private_key_${userId}`);
-  if (!jwkStr) return null;
-  
-  const jwk = JSON.parse(jwkStr);
-  return await crypto.subtle.importKey(
-    'jwk',
-    jwk,
-    ALGORITHM,
-    true,
-    ['deriveKey', 'deriveBits']
+  const stored = localStorage.getItem(`private_key_${userId}`);
+  if (!stored) return null;
+  try {
+    const wrappedKey = await deriveStorageKey(userId);
+    const combined = new Uint8Array(
+      atob(stored).split('').map(c => c.charCodeAt(0))
+    );
+    
+    // 尝试新格式（加密存储）
+    if (combined.length > 12) {
+      try {
+        const nonce = combined.slice(0, 12);
+        const encrypted = combined.slice(12);
+        const decryptedBuf = await crypto.subtle.decrypt(
+          { name: 'AES-GCM', iv: nonce },
+          wrappedKey,
+          encrypted
+        );
+        const decoder = new TextDecoder();
+        const jwkStr = decoder.decode(decryptedBuf);
+        const jwk = JSON.parse(jwkStr);
+        return await crypto.subtle.importKey(
+          'jwk',
+          jwk,
+          ALGORITHM,
+          true,
+          ['deriveKey', 'deriveBits']
+        );
+      } catch {
+        // 解密失败，可能是旧格式或未加密的 JWK
+      }
+    }
+    
+    // 回退：尝试直接解析为未加密的 JWK（兼容旧用户）
+    const jwk = JSON.parse(stored);
+    if (jwk.kty && jwk.d) {
+      return await crypto.subtle.importKey(
+        'jwk',
+        jwk,
+        ALGORITHM,
+        true,
+        ['deriveKey', 'deriveBits']
+      );
+    }
+    
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function deriveStorageKey(userId: string): Promise<CryptoKey> {
+  const encoder = new TextEncoder();
+  const passwordBuffer = encoder.encode(`storage-key-${userId}`);
+  const masterKey = await crypto.subtle.importKey(
+    'raw',
+    passwordBuffer,
+    'PBKDF2',
+    false,
+    ['deriveKey']
+  );
+  return await crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: encoder.encode('shiguangjian-storage-salt'),
+      iterations: 100_000,
+      hash: 'SHA-256',
+    },
+    masterKey,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
   );
 }

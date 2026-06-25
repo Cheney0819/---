@@ -8,6 +8,8 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// 注意：此 schema 为 web 包的副本，以 packages/api/prisma/schema.prisma 为准。
+// 如需修改模型定义或索引，请在 api 包中修改后同步至此。
 // ============ 用户 ============
 model User {
   id            String    @id @default(cuid())

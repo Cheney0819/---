@@ -27,11 +27,13 @@ export async function checkAndTriggerCapsules() {
         await notificationService.notifyCapsuleDelivered(capsule.receiverId, capsule.id);
         console.log(`[Scheduler] Capsule ${capsule.id} triggered`);
       } catch (error) {
-        console.error(`[Scheduler] Error triggering capsule ${capsule.id}:`, error);
+        // Fix 10: 只记录 error.message
+        console.error(`[Scheduler] Error triggering capsule ${capsule.id}:`, error instanceof Error ? error.message : String(error));
       }
     }
   } catch (error) {
-    console.error('[Scheduler] Error checking capsules:', error);
+    // Fix 10: 只记录 error.message
+    console.error('[Scheduler] Error checking capsules:', error instanceof Error ? error.message : String(error));
   }
 }
 

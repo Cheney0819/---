@@ -1,8 +1,9 @@
 import { FastifyInstance } from 'fastify';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { z } from 'zod';
 import { prisma } from '../index';
-import { loginRateLimit } from '../middleware/ratelimit';
+import { loginRateLimit, registerRateLimit } from '../middleware/ratelimit';
 import { USER_CONSTANTS, SECURITY_CONSTANTS } from '../constants';
 
 // ============ 验证 Schema ============
@@ -26,7 +27,7 @@ const loginSchema = z.object({
 // ============ 路由 ============
 export async function authRoutes(app: FastifyInstance) {
   // 注册
-  app.post('/register', async (request, reply) => {
+  app.post('/register', { preHandler: [registerRateLimit] }, async (request, reply) => {
     const body = registerSchema.parse(request.body);
     
     // 检查用户名是否已存在
@@ -51,8 +52,8 @@ export async function authRoutes(app: FastifyInstance) {
       USER_CONSTANTS.BCRYPT_SALT_ROUNDS
     );
     
-    // 生成唯一识别码 (8位)
-    const generateCode = () => Math.random().toString(36).substring(2, 6).toUpperCase();
+    // 生成唯一识别码 (8位，使用 crypto.randomBytes)
+    const generateCode = () => crypto.randomBytes(4).toString('hex').toUpperCase().substring(0, 8);
     let inviteCode = generateCode();
     
     // 确保识别码唯一
@@ -81,10 +82,16 @@ export async function authRoutes(app: FastifyInstance) {
       },
     });
     
-    // 生成 JWT
+    // 生成 JWT — Fix: 添加 sub/jti claims 与 web jose 保持一致
     const token = app.jwt.sign(
       { id: user.id, username: user.username },
-      { expiresIn: `${SECURITY_CONSTANTS.JWT_EXPIRY_HOURS}h` }
+      {
+        expiresIn: `${SECURITY_CONSTANTS.JWT_EXPIRY_HOURS}h`,
+        jwtOptions: {
+          subject: user.id,
+          jwtid: crypto.randomUUID(),
+        },
+      }
     );
     
     return { user, token };
@@ -108,10 +115,16 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.status(401).send({ error: '邮箱或密码错误' });
     }
     
-    // 生成 JWT
+    // 生成 JWT — Fix: 添加 sub/jti claims 与 web jose 保持一致
     const token = app.jwt.sign(
       { id: user.id, username: user.username },
-      { expiresIn: `${SECURITY_CONSTANTS.JWT_EXPIRY_HOURS}h` }
+      {
+        expiresIn: `${SECURITY_CONSTANTS.JWT_EXPIRY_HOURS}h`,
+        jwtOptions: {
+          subject: user.id,
+          jwtid: crypto.randomUUID(),
+        },
+      }
     );
     
     return {

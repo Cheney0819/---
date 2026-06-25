@@ -71,6 +71,7 @@ model Message {
 
   @@index([pairId, createdAt])
   @@index([senderId])
+  @@index([deletedAt])
 }
 
 // ============ 时间胶囊 ============
@@ -94,6 +95,7 @@ model TimeCapsule {
 
   @@index([receiverId, status])
   @@index([triggerTime, status])
+  @@index([status])
 }
 
 // ============ 共享日记 ============
@@ -105,6 +107,8 @@ model SharedDiary {
   pair      Pair     @relation(fields: [pairId], references: [id])
   pairId    String
   entries   DiaryEntry[]
+
+  @@index([pairId])
 }
 
 // ============ 日记条目 ============
@@ -134,6 +138,8 @@ model SharedAlbum {
   pair        Pair     @relation(fields: [pairId], references: [id])
   pairId      String
   media       SharedMedia[]
+
+  @@index([pairId])
 }
 
 // ============ 共享媒体 ============
@@ -151,6 +157,7 @@ model SharedMedia {
   uploaderId   String
 
   @@index([albumId, createdAt])
+  @@index([uploaderId])
 }
 
 // ============ 预密钥 ============

@@ -11,13 +11,25 @@ export async function signToken(payload: { id: string; username: string }): Prom
   return new SignJWT({ ...payload })
     .setProtectedHeader({ alg: 'HS256' })
     .setExpirationTime(`${SECURITY_CONSTANTS.JWT_EXPIRY_HOURS}h`)
+    .setJti(crypto.randomUUID())
+    .setIssuedAt()
+    .setSubject(payload.id)
+    .setIssuer('shiguangjian')
+    .setAudience('shiguangjian-web')
     .sign(getJwtSecret());
 }
 
 export async function verifyToken(token: string): Promise<{ id: string; username: string } | null> {
   try {
-    const { payload } = await jwtVerify(token, getJwtSecret());
-    return payload as { id: string; username: string };
+    const { payload } = await jwtVerify(token, getJwtSecret(), {
+      issuer: 'shiguangjian',
+      audience: 'shiguangjian-web',
+    });
+    const sub = payload.sub as string | undefined;
+    if (!sub || sub !== payload.id) {
+      return null;
+    }
+    return { id: payload.id as string, username: payload.username as string };
   } catch {
     return null;
   }
