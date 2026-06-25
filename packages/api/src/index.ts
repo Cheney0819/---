@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
@@ -9,6 +10,7 @@ import { messageRoutes } from './routes/messages';
 import { capsuleRoutes } from './routes/capsules';
 import { diaryRoutes } from './routes/diary';
 import { albumRoutes } from './routes/album';
+import { uploadRoutes } from './routes/upload';
 import { startScheduler } from './services/scheduler';
 import { setupWebSocket } from './services/websocket';
 import { SECURITY_CONSTANTS } from './constants';
@@ -89,6 +91,7 @@ async function setupApp() {
   // 启动定时任务
   startScheduler();
   await app.register(albumRoutes, { prefix: '/api/albums' });
+  await app.register(uploadRoutes, { prefix: '/api' });
 
   // 健康检查
   app.get('/health', async () => {

@@ -49,7 +49,9 @@ export default function RegisterPage() {
     window.history.replaceState(null, "", "/dashboard");
     router.push("/dashboard");
     } catch (err: any) {
-      setError(err.message || '缔结失败');
+      const msg = err.message;
+      setError((/^[\x00-\x7F]+$/.test(msg) || msg.includes("database") || msg.includes("connection")
+        ? "注册失败，请稍后重试" : msg) || '缔结失败');
     } finally {
       setLoading(false);
     }

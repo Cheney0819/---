@@ -33,14 +33,12 @@ export default function DashboardPage() {
   const [pageReady, setPageReady] = useState(false);
   const router = useRouter();
 
-
   useEffect(() => {
     if (!isAuthenticated) { router.replace('/login'); return; }
     loadPairs();
     loadStartDate();
     updateGreeting();
-    setTimeout(() => setPageReady(true), 800);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setTimeout(() => setPageReady(true), 1500);
   }, [isAuthenticated]);
 
   const updateGreeting = () => {
@@ -175,34 +173,8 @@ export default function DashboardPage() {
           </div>
         </FadeIn>
 
-        {/* 快捷功能 - 2x2 网格 */}
-        <FadeIn delay={200}>
-          <div className="mb-8">
-            <h2 className="text-lg font-semibold text-white mb-4">快捷功能</h2>
-            <div className="grid grid-cols-2 gap-3">
-              {quickActions.map((action, index) => (
-                <SlideIn key={action.href} delay={300 + index * 80}>
-                  <Link href={action.href}>
-                    <GlassCard className="p-4 group card-hover">
-                      <div className="flex items-start gap-3">
-                        <div className={`w-12 h-12 rounded-xl ${action.iconBg} flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform`}>
-                          <action.icon size={24} color={action.color.includes('yellow') ? '#fbbf24' : action.color.includes('blue') ? '#3b82f6' : action.color.includes('pink') ? '#ec4899' : '#22c55e'} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-white font-medium text-sm truncate">{action.label}</p>
-                          <p className="text-gray-500 text-xs mt-0.5">{action.desc}</p>
-                        </div>
-                      </div>
-                    </GlassCard>
-                  </Link>
-                </SlideIn>
-              ))}
-            </div>
-          </div>
-        </FadeIn>
-
         {/* 我的配对 */}
-        <FadeIn delay={400}>
+        <FadeIn delay={200}>
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-white">我的配对</h2>
@@ -232,6 +204,32 @@ export default function DashboardPage() {
                 ))}
               </div>
             )}
+          </div>
+        </FadeIn>
+
+        {/* 快捷功能 - 2x2 网格 */}
+        <FadeIn delay={300}>
+          <div className="mb-8">
+            <h2 className="text-lg font-semibold text-white mb-4">快捷功能</h2>
+            <div className="grid grid-cols-2 gap-3">
+              {quickActions.map((action, index) => (
+                <SlideIn key={action.href} delay={400 + index * 80}>
+                  <Link href={action.href}>
+                    <GlassCard className="p-4 group card-hover">
+                      <div className="flex items-start gap-3">
+                        <div className={`w-12 h-12 rounded-xl ${action.iconBg} flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform`}>
+                          <action.icon size={24} color={action.color.includes('yellow') ? '#fbbf24' : action.color.includes('blue') ? '#3b82f6' : action.color.includes('pink') ? '#ec4899' : '#22c55e'} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-white font-medium text-sm truncate">{action.label}</p>
+                          <p className="text-gray-500 text-xs mt-0.5">{action.desc}</p>
+                        </div>
+                      </div>
+                    </GlassCard>
+                  </Link>
+                </SlideIn>
+              ))}
+            </div>
           </div>
         </FadeIn>
 

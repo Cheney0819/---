@@ -73,8 +73,8 @@ export const messageApi = {
   list: (pairId: string, token: string, page = 1) =>
     api(`/api/messages/${pairId}?page=${page}`, { token }),
   
-  send: (pairId: string, content: string, token: string) =>
-    api(`/api/messages/${pairId}`, { method: 'POST', body: { content, contentType: 'text' }, token }),
+  send: (pairId: string, content: string, token: string, contentType = 'text', mediaUrls: string[] = []) =>
+    api(`/api/messages/${pairId}`, { method: 'POST', body: { content, contentType, mediaUrls }, token }),
 };
 
 // Capsule API
@@ -145,4 +145,52 @@ export const albumApi = {
 export const inviteApi = {
   findByCode: (code: string, token: string) =>
     api(`/api/users/by-code/${code}`, { token }),
+};
+
+// ============ 文件上传 API ============
+export const uploadApi = {
+  // 上传文件（图片/语音/视频）
+  // 流程：1. 向后端请求预签名URL  2. 前端直传OSS  3. 返回公开URL
+  file: async (file: File, token: string): Promise<{ url: string; key: string; contentType: string }> => {
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
+    
+    // Step 1: 获取预签名上传凭证
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const signResponse = await fetch(`${API_BASE}/api/upload`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData,
+    });
+    
+    if (!signResponse.ok) {
+      const err = await signResponse.json();
+      throw new Error(err.error || '获取上传凭证失败');
+    }
+    
+    const { uploadUrl, key, authorization, dateHeader } = await signResponse.json();
+    
+    // Step 2: 直传 OSS
+    const uploadRes = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: {
+        'Authorization': authorization,
+        'Date': dateHeader,
+        'Content-Type': file.type,
+      },
+      body: file,
+    });
+    
+    if (!uploadRes.ok) {
+      throw new Error('文件上传到 OSS 失败');
+    }
+    
+    return { url: uploadUrl, key, contentType: file.type };
+  },
+  
+  files: async (files: File[], token: string): Promise<Array<{ url: string; key: string; contentType: string }>> => {
+    const results = await Promise.all(files.map(f => uploadApi.file(f, token)));
+    return results;
+  },
 };

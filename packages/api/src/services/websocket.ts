@@ -62,8 +62,8 @@ export function setupWebSocket(app: FastifyInstance) {
     });
 
     socket.on('message', async (message: any) => {
-      // Fix: 消息大小限制（最大 10KB）
-      if (message.length > 10 * 1024) {
+      // Fix: 消息大小限制（最大 100KB，支持表情包/照片/语音 URL）
+      if (message.length > 100 * 1024) {
         socket.send(JSON.stringify({ type: 'error', error: '消息过大' }));
         return;
       }
@@ -104,32 +104,71 @@ export function setupWebSocket(app: FastifyInstance) {
               socket.send(JSON.stringify({ type: 'error', error: '缺少必要字段' }));
               return;
             }
-            if (typeof data.message !== 'string') {
-              socket.send(JSON.stringify({ type: 'error', error: '消息格式错误' }));
-              return;
-            }
-            if (data.message.length > 5000) {
-              socket.send(JSON.stringify({ type: 'error', error: '消息过长' }));
-              return;
-            }
-            if (userId && data.pairId && data.message) {
-              const pair = await prisma.pair.findFirst({
-                where: {
-                  id: data.pairId,
-                  status: 'active',
-                  OR: [
-                    { userAId: userId },
-                    { userBId: userId },
-                  ],
-                },
-              });
-              if (pair) {
-                const receiverId = pair.userAId === userId ? pair.userBId : pair.userAId;
-                sendToUser(receiverId, {
-                  type: 'new_message',
-                  message: data.message,
-                  pairId: data.pairId,
+
+            // 支持纯文本和多媒體消息
+            const contentType = data.contentType || 'text';
+            const mediaUrls = data.mediaUrls || [];
+
+            if (contentType === 'text') {
+              if (typeof data.message !== 'string') {
+                socket.send(JSON.stringify({ type: 'error', error: '消息格式错误' }));
+                return;
+              }
+              if (data.message.length > 5000) {
+                socket.send(JSON.stringify({ type: 'error', error: '消息过长' }));
+                return;
+              }
+              if (userId && data.pairId && data.message) {
+                const pair = await prisma.pair.findFirst({
+                  where: {
+                    id: data.pairId,
+                    status: 'active',
+                    OR: [
+                      { userAId: userId },
+                      { userBId: userId },
+                    ],
+                  },
                 });
+                if (pair) {
+                  const receiverId = pair.userAId === userId ? pair.userBId : pair.userAId;
+                  sendToUser(receiverId, {
+                    type: 'new_message',
+                    message: data.message,
+                    pairId: data.pairId,
+                  });
+                }
+              }
+            } else {
+              // 多媒体消息（image / voice）：校验 URL
+              if (!Array.isArray(mediaUrls) || mediaUrls.length === 0) {
+                socket.send(JSON.stringify({ type: 'error', error: '缺少媒体地址' }));
+                return;
+              }
+              if (mediaUrls.length > 10) {
+                socket.send(JSON.stringify({ type: 'error', error: '媒体数量过多' }));
+                return;
+              }
+              if (userId && data.pairId) {
+                const pair = await prisma.pair.findFirst({
+                  where: {
+                    id: data.pairId,
+                    status: 'active',
+                    OR: [
+                      { userAId: userId },
+                      { userBId: userId },
+                    ],
+                  },
+                });
+                if (pair) {
+                  const receiverId = pair.userAId === userId ? pair.userBId : pair.userAId;
+                  sendToUser(receiverId, {
+                    type: 'new_message',
+                    message: data.message || '',
+                    pairId: data.pairId,
+                    contentType,
+                    mediaUrls,
+                  });
+                }
               }
             }
             break;

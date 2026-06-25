@@ -83,7 +83,7 @@ export async function POST(request: NextRequest, { params }: { params: { pairId:
     return NextResponse.json({ message }, { status: 201 });
   } catch (error) {
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 });
-    if (error instanceof z.ZodError) return NextResponse.json({ error: error.errors[0].message }, { status: 400 });
+    if (error instanceof z.ZodError) return NextResponse.json({ error: "请求参数有误" }, { status: 400 });
     console.error('Send message error:', error);
     return NextResponse.json({ error: '服务器错误' }, { status: 500 });
   }

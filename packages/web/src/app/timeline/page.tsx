@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
-import { messageApi, capsuleApi, diaryApi } from '@/lib/api';
+import { messageApi, capsuleApi, pairApi } from '@/lib/api';
 import { FadeIn, SlideIn } from '@/components/motion';
 import { BackIcon, TimelineIcon, CapsuleIcon, DiaryIcon, MilestoneIcon } from '@/components/icons';
 import { GlassCard } from '@/components/ui/GlassCard';
@@ -30,9 +30,7 @@ export default function TimelinePage() {
   const loadTimeline = async () => {
     try {
       // 获取所有数据
-      const [pairsData] = await Promise.all([
-        fetch('/api/pairs', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
-      ]);
+      const pairsData = await pairApi.list(token!);
 
       if (!pairsData.pairs?.length) {
         setLoading(false);

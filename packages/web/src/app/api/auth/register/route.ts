@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ user, token }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors[0].message }, { status: 400 });
+      return NextResponse.json({ error: "请求参数有误" }, { status: 400 });
     }
     console.error('Register error:', error);
     return NextResponse.json({ error: '服务器错误' }, { status: 500 });

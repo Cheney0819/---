@@ -1,64 +1,77 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
-import { albumApi } from '@/lib/api';
+import { albumApi, uploadApi } from '@/lib/api';
 import { FadeIn, ScaleIn } from '@/components/motion';
-import { BackIcon, AlbumIcon, UploadIcon } from '@/components/icons';
+import { BackIcon, AlbumIcon, UploadIcon, PhotoIcon } from '@/components/icons';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GradientButton } from '@/components/ui/GradientButton';
-import { Skeleton } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { UPLOAD_CONSTANTS } from '@/lib/constants';
 
 interface Photo {
   id: string;
   url: string;
   thumbnailUrl?: string;
-  mediaType: string;
   uploader: { username: string; displayName?: string };
   createdAt: string;
 }
 
-interface Album {
-  id: string;
-  name: string;
-  media: Photo[];
-  _count: { media: number };
-}
-
 export default function AlbumPage() {
   const { token, isAuthenticated } = useAuthStore();
-  const [albums, setAlbums] = useState<Album[]>([]);
+  const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newAlbumName, setNewAlbumName] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [notification, setNotification] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
   useEffect(() => {
     if (!isAuthenticated) { router.push('/login'); return; }
-    loadAlbums();
+    loadAlbum();
   }, [isAuthenticated]);
 
-  const loadAlbums = async () => {
+  const handleUploadPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !token || uploading) return;
+
+    if (!UPLOAD_CONSTANTS.ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      setNotification('只支持 JPG/PNG/GIF/WebP 格式的图片');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const result = await uploadApi.file(file, token);
+      // 添加到第一个相册
+      const { albums } = await albumApi.list(token);
+      if (albums && albums.length > 0) {
+        // 直接通过 REST API 添加照片到相册
+        const { media } = await albumApi.addPhoto(albums[0].id, result.url, token);
+        setPhotos(media || [result.url]);
+        loadAlbum();
+      }
+    } catch (err: any) {
+      console.error('Upload error:', err);
+      setNotification(err.message || '上传失败');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+    const loadAlbum = async () => {
     try {
       const { albums } = await albumApi.list(token!);
-      setAlbums(albums);
+      if (albums && albums.length > 0) {
+        setPhotos(albums[0].media || []);
+      }
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleCreateAlbum = async () => {
-    if (!newAlbumName.trim()) return;
-    try {
-      await albumApi.create(newAlbumName, token!);
-      setNewAlbumName('');
-      setShowCreateModal(false);
-      loadAlbums();
-    } catch (err) {
-      console.error(err);
     }
   };
 
@@ -81,74 +94,60 @@ export default function AlbumPage() {
             <button onClick={() => router.back()} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-dark-600 transition-colors text-gray-400 hover:text-white btn-tap">
               <BackIcon size={20} />
             </button>
-            <div className="flex items-center gap-2">
-              <AlbumIcon size={22} color="#4ade80" />
-              <h1 className="text-xl font-bold text-white">共享相册</h1>
-            </div>
+            <h1 className="text-xl font-bold text-white">共享相册</h1>
           </div>
-          <GradientButton onClick={() => setShowCreateModal(true)} size="sm">
-            + 新建
+          <GradientButton size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+            <div className="flex items-center gap-1">
+              <UploadIcon size={14} />
+              <span>上传</span>
+            </div>
           </GradientButton>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={UPLOAD_CONSTANTS.ALLOWED_IMAGE_TYPES.join(',')}
+            onChange={handleUploadPhoto}
+            className="hidden"
+          />
         </div>
       </header>
 
       <div className="max-w-lg mx-auto px-5 py-4">
         {loading ? (
-          <div className="grid grid-cols-2 gap-4">
-            {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="aspect-square rounded-2xl" />
+          <div className="grid grid-cols-3 gap-2">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="aspect-square bg-dark-600/30 rounded-xl animate-pulse" />
             ))}
           </div>
-        ) : albums.length === 0 ? (
-          <FadeIn>
-            <GlassCard className="p-12 text-center">
-              <div className="w-20 h-20 mx-auto mb-4 bg-dark-600/30 rounded-2xl flex items-center justify-center">
-                <AlbumIcon size={36} color="#4ade80" />
-              </div>
-              <p className="text-gray-400 font-medium">还没有相册</p>
-              <p className="text-gray-500 text-sm mt-1">创建第一个相册</p>
-            </GlassCard>
-          </FadeIn>
+        ) : photos.length === 0 ? (
+          <EmptyState
+            icon={<AlbumIcon size={36} color="#4ade80" />}
+            title="还没有照片"
+            description="上传你们的照片"
+          />
         ) : (
-          <div className="grid grid-cols-2 gap-4">
-            {albums.map((album, index) => (
-              <ScaleIn key={album.id} delay={index * 100}>
-                <GlassCard className="p-4 cursor-pointer" hover>
-                  <div className={`aspect-square rounded-xl mb-3 overflow-hidden ${photoColors[index % photoColors.length]} flex items-center justify-center`}>
-                    {album._count.media > 0 ? (
-                      <AlbumIcon size={32} color="rgba(255,255,255,0.5)" />
-                    ) : (
-                      <span className="text-white/50 text-4xl">📷</span>
-                    )}
+          <div className="grid grid-cols-3 gap-2">
+            {photos.map((photo, index) => (
+              <ScaleIn key={photo.id} delay={index * 50}>
+                <div className={`aspect-square rounded-xl overflow-hidden relative group cursor-pointer bg-gradient-to-br ${photoColors[index % photoColors.length]} card-hover`}>
+                  <img 
+                    src={photo.url} 
+                    alt="photo" 
+                    className="absolute inset-0 w-full h-full object-cover"
+                    loading="lazy"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                  <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                    <p className="text-white text-xs truncate">{photo.uploader.displayName || photo.uploader.username}</p>
                   </div>
-                  <p className="text-white font-medium truncate">{album.name}</p>
-                  <p className="text-gray-500 text-xs">{album._count.media} 张照片</p>
-                </GlassCard>
+                </div>
               </ScaleIn>
             ))}
           </div>
         )}
       </div>
-
-      {/* 创建相册弹窗 */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <GlassCard className="w-full max-w-sm p-6 animate-scale-in" variant="dark">
-            <h3 className="text-lg font-semibold text-white mb-4">创建相册</h3>
-            <input
-              type="text"
-              value={newAlbumName}
-              onChange={(e) => setNewAlbumName(e.target.value)}
-              placeholder="相册名称"
-              className="w-full px-4 py-3 bg-dark-600/50 border border-gray-700/50 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-primary-teal/50 transition-all duration-300"
-            />
-            <div className="flex gap-3 mt-6">
-              <button onClick={() => setShowCreateModal(false)} className="flex-1 py-3 bg-dark-600/50 text-gray-400 rounded-xl hover:bg-dark-600 transition-all duration-200 active:scale-95 btn-tap">取消</button>
-              <GradientButton onClick={handleCreateAlbum} disabled={!newAlbumName.trim()} className="flex-1">创建</GradientButton>
-            </div>
-          </GlassCard>
-        </div>
-      )}
     </main>
   );
 }

@@ -32,7 +32,7 @@ export default function SearchPage() {
         setFoundUser(found);
       }
     } catch (err: any) {
-      setError(err.message || '查找失败');
+      setError(err.message ? (/^[\x00-\x7F]+$/.test(err.message) || err.message.includes("database") ? "查找失败，请稍后重试" : err.message) : "查找失败");
     } finally {
       setLoading(false);
     }
@@ -45,7 +45,8 @@ export default function SearchPage() {
       await pairApi.create(foundUser.id, token!);
       router.push('/dashboard');
     } catch (err: any) {
-      alert(err.message || '配对失败');
+      const pairErr = err.message;
+      alert(pairErr ? (/^[\x00-\x7F]+$/.test(pairErr) || pairErr.includes("database") ? "配对失败，请稍后重试" : pairErr) : "配对失败");
     } finally {
       setPairing(false);
     }

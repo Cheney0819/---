@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors[0].message }, { status: 400 });
+      return NextResponse.json({ error: "请求参数有误" }, { status: 400 });
     }
     // 详细错误信息，方便排查
     const errorMsg = error instanceof Error ? error.message : String(error);

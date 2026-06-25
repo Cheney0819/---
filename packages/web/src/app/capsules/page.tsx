@@ -4,14 +4,12 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { capsuleApi, pairApi } from '@/lib/api';
-import { useEncryption } from '@/contexts/EncryptionContext';
 import { FadeIn, ScaleIn, SlideIn } from '@/components/motion';
-import { BackIcon, CapsuleIcon, HeartIcon, SendIcon } from '@/components/icons';
+import { BackIcon, CapsuleIcon } from '@/components/icons';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { Tag } from '@/components/ui/Tag';
-import { SkeletonCard } from '@/components/ui/Skeleton';
-import { CapsuleReveal } from '@/components/capsule/CapsuleReveal';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 interface Capsule {
   id: string;
@@ -33,7 +31,6 @@ export default function CapsulesPage() {
   const [newContent, setNewContent] = useState('');
   const [newTriggerTime, setNewTriggerTime] = useState('');
   const [creating, setCreating] = useState(false);
-  const { encrypt } = useEncryption();
   const router = useRouter();
 
   useEffect(() => {
@@ -64,7 +61,8 @@ export default function CapsulesPage() {
       await capsuleApi.open(id, token!);
       loadCapsules();
     } catch (err: any) {
-      alert(err.message);
+      const openErr = err.message;
+      alert(openErr ? (/^[\x00-\x7F]+$/.test(openErr) || openErr.includes("database") ? "操作失败，请稍后重试" : openErr) : "操作失败");
     }
   };
 
@@ -73,17 +71,17 @@ export default function CapsulesPage() {
     
     setCreating(true);
     try {
-      // 获取配对信息
       const { pairs } = await pairApi.list(token!);
       if (!pairs || pairs.length === 0) {
-        alert('请先创建配对');
+        setNotification('请先创建配对');
         return;
       }
       
-      const pair = pairs[0];
+      // 如果有多个配对，选择第一个活跃的
+      const activePairs = pairs.filter((p: any) => p.status === 'active');
+      const pair = activePairs[0] || pairs[0];
       const receiverId = pair.userA.id === user?.id ? pair.userB.id : pair.userA.id;
       
-      // 创建时间胶囊
       await capsuleApi.create({
         pairId: pair.id,
         receiverId,
@@ -96,7 +94,8 @@ export default function CapsulesPage() {
       setNewTriggerTime('');
       loadCapsules();
     } catch (err: any) {
-      alert(err.message || '创建失败');
+      const createErr = err.message;
+      alert(createErr ? (/^[\x00-\x7F]+$/.test(createErr) || createErr.includes("database") ? "创建失败，请稍后重试" : createErr) : "创建失败");
     } finally {
       setCreating(false);
     }
@@ -130,19 +129,10 @@ export default function CapsulesPage() {
             <button onClick={() => router.back()} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-dark-600 transition-colors text-gray-400 hover:text-white btn-tap">
               <BackIcon size={20} />
             </button>
-            <div className="flex items-center gap-2">
-              <CapsuleIcon size={22} color="#ffd700" />
-              <h1 className="text-xl font-bold text-white">时间胶囊</h1>
-            </div>
+            <h1 className="text-xl font-bold text-white">时间胶囊</h1>
           </div>
-          <GradientButton
-            onClick={() => setShowCreateModal(true)}
-            size="sm"
-          >
-            <div className="flex items-center gap-1">
-              <span>+</span>
-              <span>创建</span>
-            </div>
+          <GradientButton onClick={() => setShowCreateModal(true)} size="sm">
+            + 创建
           </GradientButton>
         </div>
       </header>
@@ -156,7 +146,7 @@ export default function CapsulesPage() {
                 onClick={() => setActiveTab('received')}
                 className={`flex-1 py-3 rounded-xl text-sm font-medium transition-all duration-300 btn-tap ${
                   activeTab === 'received' 
-                    ? 'bg-gradient-to-r from-primary-teal to-primary-teal/80 text-dark-900 shadow-lg shadow-primary-teal/20' 
+                    ? 'bg-gradient-to-r from-pink-400 to-rose-400 text-white shadow-lg shadow-pink-400/20' 
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
@@ -166,7 +156,7 @@ export default function CapsulesPage() {
                 onClick={() => setActiveTab('sent')}
                 className={`flex-1 py-3 rounded-xl text-sm font-medium transition-all duration-300 btn-tap ${
                   activeTab === 'sent' 
-                    ? 'bg-gradient-to-r from-primary-teal to-primary-teal/80 text-dark-900 shadow-lg shadow-primary-teal/20' 
+                    ? 'bg-gradient-to-r from-pink-400 to-rose-400 text-white shadow-lg shadow-pink-400/20' 
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
@@ -179,29 +169,16 @@ export default function CapsulesPage() {
         {loading ? (
           <div className="space-y-4">
             {[1, 2].map((i) => (
-              <SkeletonCard key={i} />
+              <div key={i} className="h-32 bg-dark-600/30 rounded-2xl animate-pulse" />
             ))}
           </div>
         ) : capsules.length === 0 ? (
-          <FadeIn delay={200}>
-            <GlassCard className="p-12 text-center">
-              <div className="w-20 h-20 mx-auto mb-4 bg-dark-600/30 rounded-2xl flex items-center justify-center glass">
-                <CapsuleIcon size={36} color="#ffd700" />
-              </div>
-              <p className="text-gray-400 font-medium mb-2">
-                {activeTab === 'received' ? '还没有收到时间胶囊' : '还没有发送时间胶囊'}
-              </p>
-              <p className="text-gray-500 text-sm mb-4">
-                {activeTab === 'received' ? '等待 ta 给你写一封来自过去的信' : '给 ta 写一封来自未来的信'}
-              </p>
-              <GradientButton
-                onClick={() => setShowCreateModal(true)}
-                size="sm"
-              >
-                创建时间胶囊
-              </GradientButton>
-            </GlassCard>
-          </FadeIn>
+          <EmptyState
+            icon={<CapsuleIcon size={36} color="#ffd700" />}
+            title={activeTab === 'received' ? '还没有收到时间胶囊' : '还没有发送时间胶囊'}
+            description={activeTab === 'received' ? '等待 ta 给你写一封来自过去的信' : '给 ta 写一封来自未来的信'}
+            action={{ label: '创建时间胶囊', onClick: () => setShowCreateModal(true) }}
+          />
         ) : (
           <div className="space-y-4">
             {capsules.map((capsule, index) => (
@@ -225,54 +202,29 @@ export default function CapsulesPage() {
                     </span>
                   </div>
 
-                  {/* 倒计时 */}
                   {capsule.status === 'pending' && (
                     <div className="mb-4 p-3 bg-yellow-500/10 rounded-xl border border-yellow-500/20">
-                      <div className="flex items-center gap-2">
-                        <span className="text-yellow-500 text-sm">⏳</span>
-                        <span className="text-yellow-400 text-sm">
-                          {getCountdown(capsule.triggerTime)}
-                        </span>
-                      </div>
+                      <span className="text-yellow-400 text-sm">
+                        ⏳ {getCountdown(capsule.triggerTime)}
+                      </span>
                     </div>
                   )}
                   
                   {capsule.status === 'read' ? (
-                    <GlassCard className="p-4 border-l-4 border-l-primary-pink" variant="dark">
+                    <GlassCard className="p-4 border-l-4 border-l-pink-400" variant="dark">
                       <p className="text-white text-sm leading-relaxed">{capsule.content}</p>
-                      <div className="flex items-center justify-between mt-3">
-                        <p className="text-gray-500 text-xs">
-                          写入于 {new Date(capsule.createdAt).toLocaleDateString()}
-                        </p>
-                        {capsule.sender && (
-                          <p className="text-gray-500 text-xs">
-                            来自 {capsule.sender.displayName || capsule.sender.username}
-                          </p>
-                        )}
-                      </div>
+                      <p className="text-gray-500 text-xs mt-3">
+                        写入于 {new Date(capsule.createdAt).toLocaleDateString()}
+                      </p>
                     </GlassCard>
                   ) : capsule.status === 'delivered' && activeTab === 'received' ? (
-                    <div>
-                      <div className="text-center mb-4 p-6 bg-gradient-to-br from-primary-teal/10 to-primary-pink/10 rounded-2xl">
-                        <div className="text-4xl mb-2">💌</div>
-                        <p className="text-white font-medium">时间胶囊已送达</p>
-                        <p className="text-gray-400 text-sm mt-1">点击下方按钮查看内容</p>
-                      </div>
-                      <GradientButton
-                        fullWidth
-                        onClick={() => handleOpen(capsule.id)}
-                        variant="primary"
-                      >
-                        <div className="flex items-center justify-center gap-2">
-                          <HeartIcon size={16} />
-                          <span>打开时间胶囊</span>
-                        </div>
-                      </GradientButton>
-                    </div>
+                    <GradientButton fullWidth onClick={() => handleOpen(capsule.id)}>
+                      💌 打开时间胶囊
+                    </GradientButton>
                   ) : (
-                    <div className="text-center py-6">
-                      <div className="w-16 h-16 mx-auto mb-3 bg-dark-700/50 rounded-2xl flex items-center justify-center glass">
-                        <span className="text-2xl">🔒</span>
+                    <div className="text-center py-4">
+                      <div className="w-12 h-12 mx-auto mb-2 bg-dark-700/50 rounded-xl flex items-center justify-center glass">
+                        <span className="text-xl">🔒</span>
                       </div>
                       <p className="text-gray-500 text-sm">
                         {capsule.status === 'pending' ? '胶囊还未送达' : '等待对方打开'}
@@ -286,16 +238,11 @@ export default function CapsulesPage() {
         )}
       </div>
 
-      {/* 创建时间胶囊弹窗 */}
+      {/* 创建弹窗 */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
           <GlassCard className="w-full max-w-sm p-6 animate-scale-in" variant="dark">
-            <div className="text-center mb-6">
-              <div className="text-4xl mb-2">💌</div>
-              <h3 className="text-lg font-semibold text-white">创建时间胶囊</h3>
-              <p className="text-gray-400 text-sm mt-1">写一封给未来的信</p>
-            </div>
-            
+            <h3 className="text-lg font-semibold text-white mb-4">创建时间胶囊</h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-gray-400 text-sm mb-2">内容</label>
@@ -303,25 +250,23 @@ export default function CapsulesPage() {
                   value={newContent}
                   onChange={(e) => setNewContent(e.target.value)}
                   placeholder="你想对未来说什么..."
-                  className="w-full px-4 py-3 bg-dark-600/50 border border-gray-700/50 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-primary-teal/50 transition-all duration-300 resize-none h-32 input-focus"
+                  className="w-full px-4 py-3 bg-dark-600/50 border border-gray-700/50 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-pink-400/50 resize-none h-24"
                 />
               </div>
-
               <div>
                 <label className="block text-gray-400 text-sm mb-2">送达时间</label>
                 <input
                   type="datetime-local"
                   value={newTriggerTime}
                   onChange={(e) => setNewTriggerTime(e.target.value)}
-                  className="w-full px-4 py-3 bg-dark-600/50 border border-gray-700/50 rounded-xl text-white focus:outline-none focus:border-primary-teal/50 transition-all duration-300 input-focus"
+                  className="w-full px-4 py-3 bg-dark-600/50 border border-gray-700/50 rounded-xl text-white focus:outline-none focus:border-pink-400/50"
                 />
               </div>
             </div>
-
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="flex-1 py-3 bg-dark-600/50 text-gray-400 rounded-xl hover:bg-dark-600 transition-all duration-200 active:scale-95 btn-tap"
+                className="flex-1 py-3 bg-dark-600/50 text-gray-400 rounded-xl hover:bg-dark-600 transition-all active:scale-95"
               >
                 取消
               </button>
@@ -331,10 +276,7 @@ export default function CapsulesPage() {
                 loading={creating}
                 className="flex-1"
               >
-                <div className="flex items-center justify-center gap-2">
-                  <SendIcon size={16} />
-                  <span>发送</span>
-                </div>
+                创建
               </GradientButton>
             </div>
           </GlassCard>

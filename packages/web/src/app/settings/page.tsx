@@ -1,53 +1,34 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { FadeIn } from '@/components/motion';
-import { BackIcon, ShieldIcon, BellIcon, PaletteIcon, UserIcon } from '@/components/icons';
+import { BackIcon, ShieldIcon, BellIcon, PaletteIcon, UserIcon, LogoutIcon } from '@/components/icons';
 import { GlassCard } from '@/components/ui/GlassCard';
 
 export default function SettingsPage() {
   const { user, isAuthenticated, logout } = useAuthStore();
   const router = useRouter();
-  const [notifications, setNotifications] = useState(true);
-  const [sound, setSound] = useState(true);
-  const [darkMode, setDarkMode] = useState(true);
+  const [notifications, setNotifications] = useState(() => {
+    const saved = localStorage.getItem('setting_notifications');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  const [sound, setSound] = useState(() => {
+    const saved = localStorage.getItem('setting_sound');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('setting_darkMode');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+
+  // 持久化
+  useEffect(() => { localStorage.setItem('setting_notifications', JSON.stringify(notifications)); }, [notifications]);
+  useEffect(() => { localStorage.setItem('setting_sound', JSON.stringify(sound)); }, [sound]);
+  useEffect(() => { localStorage.setItem('setting_darkMode', JSON.stringify(darkMode)); }, [darkMode]);
 
   if (!isAuthenticated) return null;
-
-  const settingsGroups: Array<{
-    title: string;
-    items: Array<{
-      icon: React.FC<{ size?: number; color?: string }>;
-      label: string;
-      onClick?: () => void;
-      toggle?: boolean;
-      value?: boolean;
-      onChange?: (v: boolean) => void;
-    }>;
-  }> = [
-    {
-      title: '账户',
-      items: [
-        { icon: UserIcon, label: '编辑资料', onClick: () => router.push('/profile') },
-        { icon: ShieldIcon, label: '隐私设置', onClick: () => {} },
-      ]
-    },
-    {
-      title: '通知',
-      items: [
-        { icon: BellIcon, label: '推送通知', toggle: true, value: notifications, onChange: setNotifications },
-        { icon: BellIcon, label: '消息提示音', toggle: true, value: sound, onChange: setSound },
-      ]
-    },
-    {
-      title: '外观',
-      items: [
-        { icon: PaletteIcon, label: '深色模式', toggle: true, value: darkMode, onChange: setDarkMode },
-      ]
-    },
-  ];
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-700">
@@ -62,60 +43,56 @@ export default function SettingsPage() {
 
       <div className="max-w-lg mx-auto px-5 py-6">
         <FadeIn>
-          {settingsGroups.map((group, groupIndex) => (
-            <div key={group.title} className="mb-8">
-              <h3 className="text-sm font-medium text-gray-500 mb-3 ml-1">{group.title}</h3>
-              <GlassCard className="divide-y divide-gray-700/30">
-                {group.items.map((item, itemIndex) => (
-                  <div
-                    key={item.label}
-                    className="flex items-center justify-between py-4 px-4 cursor-pointer hover:bg-dark-600/30 transition-colors first:rounded-t-2xl last:rounded-b-2xl"
-                    onClick={item.onClick}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-dark-700/50 flex items-center justify-center">
-                        <item.icon size={20} color="#a8edea" />
-                      </div>
-                      <span className="text-white">{item.label}</span>
-                    </div>
-                    
-                    {item.toggle ? (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          item.onChange?.(!item.value);
-                        }}
-                        className={`w-12 h-7 rounded-full transition-colors duration-200 ${
-                          item.value ? 'bg-primary-teal' : 'bg-dark-600'
-                        }`}
-                      >
-                        <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${
-                          item.value ? 'translate-x-6' : 'translate-x-1'
-                        }`} />
-                      </button>
-                    ) : (
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-500">
-                        <polyline points="9 18 15 12 9 6" />
-                      </svg>
-                    )}
-                  </div>
-                ))}
-              </GlassCard>
-            </div>
-          ))}
-
-          {/* 退出登录 */}
+          {/* 通知设置 */}
           <div className="mb-8">
-            <button
-              onClick={() => { logout(); router.replace('/login'); }}
-              className="w-full py-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl font-medium hover:bg-red-500/20 transition-all duration-200 btn-tap"
-            >
-              退出登录
-            </button>
+            <h3 className="text-sm font-medium text-gray-500 mb-3">通知</h3>
+            <GlassCard>
+              <div className="flex items-center justify-between py-4 border-b border-gray-700/30">
+                <div className="flex items-center gap-3">
+                  <BellIcon size={20} color="#a8edea" />
+                  <span className="text-white">推送通知</span>
+                </div>
+                <button onClick={() => setNotifications(!notifications)} className={`w-12 h-7 rounded-full transition-colors ${notifications ? 'bg-pink-400' : 'bg-dark-600'}`}>
+                  <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${notifications ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+              <div className="flex items-center justify-between py-4">
+                <div className="flex items-center gap-3">
+                  <BellIcon size={20} color="#a8edea" />
+                  <span className="text-white">消息提示音</span>
+                </div>
+                <button onClick={() => setSound(!sound)} className={`w-12 h-7 rounded-full transition-colors ${sound ? 'bg-pink-400' : 'bg-dark-600'}`}>
+                  <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${sound ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+            </GlassCard>
           </div>
 
+          {/* 外观设置 */}
+          <div className="mb-8">
+            <h3 className="text-sm font-medium text-gray-500 mb-3">外观</h3>
+            <GlassCard>
+              <div className="flex items-center justify-between py-4">
+                <div className="flex items-center gap-3">
+                  <PaletteIcon size={20} color="#a8edea" />
+                  <span className="text-white">深色模式</span>
+                </div>
+                <button onClick={() => setDarkMode(!darkMode)} className={`w-12 h-7 rounded-full transition-colors ${darkMode ? 'bg-pink-400' : 'bg-dark-600'}`}>
+                  <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${darkMode ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+                <span className="text-gray-500 text-xs ml-2">{darkMode ? '开' : '关'}</span>
+              </div>
+            </GlassCard>
+          </div>
+
+          {/* 退出登录 */}
+          <button onClick={() => { logout(); router.replace('/login'); }} className="w-full py-4 border border-red-500/30 text-red-400 rounded-xl hover:bg-red-500/10 transition-all flex items-center justify-center gap-2">
+            <LogoutIcon size={18} />
+            <span>退出登录</span>
+          </button>
+
           {/* 版本信息 */}
-          <div className="text-center text-gray-600 text-xs pb-8">
+          <div className="text-center mt-8 text-gray-600 text-xs">
             <p>时光笺 v1.0.0</p>
             <p className="mt-1">端到端加密 · 只有你们能看到</p>
           </div>
