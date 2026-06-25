@@ -92,6 +92,19 @@ export default function RegisterPage() {
                 />
               </div>
 
+              {/* 邮箱 */}
+              <div>
+                <label className="block text-gray-400 text-xs mb-2 ml-1">邮箱</label>
+                <input
+                  type="email"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-pink-400/50 transition-all duration-300"
+                  required
+                />
+              </div>
+
               {/* 密码 */}
               <div>
                 <label className="block text-gray-400 text-xs mb-2 ml-1">密码</label>
