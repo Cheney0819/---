@@ -37,7 +37,7 @@ export default function AlbumPage() {
     const file = e.target.files?.[0];
     if (!file || !token || uploading) return;
 
-    if (!UPLOAD_CONSTANTS.ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    if (!(UPLOAD_CONSTANTS.ALLOWED_IMAGE_TYPES as readonly string[]).includes(file.type)) {
       setNotification('只支持 JPG/PNG/GIF/WebP 格式的图片');
       return;
     }
