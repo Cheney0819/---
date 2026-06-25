@@ -5,7 +5,27 @@ export async function pairRoutes(app: FastifyInstance) {
   // 创建配对
   app.post('/', { preHandler: [app.authenticate] }, async (request, reply) => {
     const { id: userId } = request.user as { id: string };
-    const { partnerId } = request.body as { partnerId: string };
+    const { partnerId, inviteCode } = request.body as { partnerId?: string; inviteCode?: string };
+    
+    // 如果传入的是 inviteCode，先查找对应的用户
+    let resolvedPartnerId = partnerId;
+    if (!resolvedPartnerId && inviteCode) {
+      const partner = await prisma.user.findUnique({
+        where: { inviteCode },
+        select: { id: true },
+      });
+      if (!partner) {
+        return reply.status(404).send({ error: '邀请码无效' });
+      }
+      if (partner.id === userId) {
+        return reply.status(400).send({ error: '不能与自己配对' });
+      }
+      resolvedPartnerId = partner.id;
+    }
+    
+    if (!resolvedPartnerId) {
+      return reply.status(400).send({ error: '请填写对方的邀请码' });
+    }
     
     // 1对1限制：检查当前用户是否已配对
     const myExistingPair = await prisma.pair.findFirst({
@@ -26,8 +46,8 @@ export async function pairRoutes(app: FastifyInstance) {
     const partnerExistingPair = await prisma.pair.findFirst({
       where: {
         OR: [
-          { userAId: partnerId },
-          { userBId: partnerId },
+          { userAId: resolvedPartnerId },
+          { userBId: resolvedPartnerId },
         ],
         status: 'active',
       },
@@ -37,11 +57,10 @@ export async function pairRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: '对方已经配对了' });
     }
     
-    // 确保 userAId < userBId（使用 Buffer.compare 保证确定性排序）
-    const [userAId, userBId] = Buffer.compare(
-      Buffer.from(userId),
-      Buffer.from(partnerId)
-    ) < 0 ? [userId, partnerId] : [partnerId, userId];
+    // 确保 userAId < userBId（使用字符串比较保证确定性排序）
+    const [userAId, userBId] = userId < resolvedPartnerId 
+      ? [userId, resolvedPartnerId] 
+      : [resolvedPartnerId, userId];
     
     try {
       const pair = await prisma.pair.create({
