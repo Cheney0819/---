@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Dimensions } from 'react-native';
 import Animated, { 
   useSharedValue, 
@@ -19,6 +19,10 @@ interface CapsuleRevealProps {
 
 export const CapsuleReveal: React.FC<CapsuleRevealProps> = ({ capsule, onOpenComplete }) => {
   const [isOpened, setIsOpened] = useState(capsule.status === 'read');
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    return () => { mountedRef.current = false; };
+  }, []);
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
   const contentAlpha = useSharedValue(capsule.status === 'read' ? 1 : 0);
@@ -29,8 +33,8 @@ export const CapsuleReveal: React.FC<CapsuleRevealProps> = ({ capsule, onOpenCom
     // 触发震动或微光动画
     scale.value = withSequence(
       withSpring(1.15),
-      withTiming(0, { duration: 400 }, (finished) => {
-        if (finished) {
+      withTiming(0, { duration: 400 }, (_finished?: boolean, _current?: any) => {
+        if (_finished && mountedRef.current) {
           runOnJS(setIsOpened)(true);
           contentAlpha.value = withTiming(1, { duration: 500 });
           runOnJS(onOpenComplete)();

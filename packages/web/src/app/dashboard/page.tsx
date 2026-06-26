@@ -6,10 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { pairApi } from '@/lib/api';
 import { FadeIn, SlideIn, ScaleIn, GradientText } from '@/components/motion';
-import HeartBeat from '@/components/HeartBeat';
 import { CapsuleIcon, TimelineIcon, DiaryIcon, AlbumIcon, LogoutIcon, ShieldIcon, CalendarIcon, HeartIcon } from '@/components/icons';
-import { TogetherTimer } from '@/components/TogetherTimer';
-import { CustomDatePicker } from '@/components/ui/CustomDatePicker';
+import HeartBeat from '@/components/HeartBeat';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -75,6 +73,30 @@ export default function DashboardPage() {
 
   const getPartner = (pair: Pair) => pair.userA.id === user?.id ? pair.userB : pair.userA;
 
+  // 计算在一起的天数/月数/年数
+  const [elapsedDays, setElapsedDays] = useState(0);
+  const [elapsedMonths, setElapsedMonths] = useState(0);
+  const [elapsedYears, setElapsedYears] = useState(0);
+
+  useEffect(() => {
+    if (!startDate) return;
+    const now = new Date();
+    const diff = now.getTime() - startDate.getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    
+    let years = now.getFullYear() - startDate.getFullYear();
+    let months = now.getMonth() - startDate.getMonth();
+    if (months < 0 || (months === 0 && now.getDate() < startDate.getDate())) {
+      years--;
+      months += 12;
+    }
+    if (months < 0) months += 12;
+    
+    setElapsedDays(days);
+    setElapsedMonths(months);
+    setElapsedYears(years);
+  }, [startDate]);
+
   if (!isAuthenticated) return null;
 
   const quickActions = [
@@ -115,7 +137,15 @@ export default function DashboardPage() {
           <div className="flex items-center gap-3">
             <Link href="/profile" className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-dark-600/50 hover:bg-dark-600 transition-colors">
               <StatusBadge status="online" size="sm" />
-              <span className="text-sm text-gray-300">{user?.displayName || user?.username}</span>
+              <div className="flex items-center gap-2">
+                <img
+                  src={user?.avatarUrl || ''}
+                  alt=""
+                  className="w-8 h-8 rounded-full object-cover ring-2 ring-primary-teal/20"
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                />
+                <span className="text-sm text-gray-300">{user?.displayName || user?.username}</span>
+              </div>
             </Link>
             <button onClick={() => { logout(); router.replace('/login'); }} className="w-9 h-9 flex items-center justify-center rounded-full bg-dark-600/50 hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-all btn-tap">
               <LogoutIcon size={16} />
@@ -133,42 +163,39 @@ export default function DashboardPage() {
           </div>
         </FadeIn>
 
-        {/* 在一起时间 - 主视觉 */}
+        {/* 在一起时间 - 紧凑统计栏 */}
         <FadeIn delay={100}>
-          <div className="mb-8">
+          <div className="mb-6">
             {startDate ? (
-              <GlassCard className="p-6 relative overflow-hidden">
-                {/* 装饰背景 */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-primary-pink/10 rounded-full blur-2xl" />
-                <div className="absolute bottom-0 left-0 w-24 h-24 bg-primary-teal/10 rounded-full blur-2xl" />
-                
-                <div className="relative">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-pink-500/20 flex items-center justify-center">
-                        <HeartBeat size={20} color="#f472b6" />
-                      </div>
-                      <p className="text-gray-400 text-sm">我们已经在一起</p>
-                    </div>
-                    <button onClick={() => setShowDateModal(true)} className="text-gray-500 text-xs hover:text-white transition-colors btn-tap px-3 py-1 rounded-full bg-dark-600/50 hover:bg-dark-600">
-                      修改
-                    </button>
+              <GlassCard className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CalendarIcon size={16} color="#f472b6" />
+                    <p className="text-gray-400 text-sm">我们已经在一起</p>
+                    <span className="text-white font-bold text-base">
+                      {elapsedDays}
+                    </span>
+                    <span className="text-gray-500 text-xs">天 {elapsedMonths > 0 ? `${elapsedMonths}个月` : ''} {elapsedYears > 0 ? `${elapsedYears}年` : ''}</span>
                   </div>
-                  <TogetherTimer startDate={startDate} />
+                  <button onClick={() => setShowDateModal(true)} className="text-gray-500 text-xs hover:text-white transition-colors btn-tap px-3 py-1 rounded-full bg-dark-600/50 hover:bg-dark-600">
+                    修改
+                  </button>
                 </div>
               </GlassCard>
             ) : (
-              <GlassCard className="p-8 cursor-pointer group" onClick={() => setShowDateModal(true)}>
-                <div className="flex flex-col items-center justify-center gap-4 group-hover:scale-105 transition-transform">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-teal/20 to-primary-pink/20 flex items-center justify-center group-hover:shadow-lg group-hover:shadow-primary-teal/20 transition-shadow">
-                    <CalendarIcon size={28} color="#a8edea" />
+              <button onClick={() => setShowDateModal(true)} className="w-full">
+                <GlassCard className="p-6 cursor-pointer group hover:border-primary-teal/30 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-teal/20 to-primary-pink/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <HeartIcon size={20} color="#f472b6" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-white font-medium text-sm">设置在一起的日期</p>
+                      <p className="text-gray-500 text-xs">开始计算你们的时光</p>
+                    </div>
                   </div>
-                  <div className="text-center">
-                    <p className="text-white font-medium mb-1">设置在一起的日期</p>
-                    <p className="text-gray-500 text-sm">开始计算你们的时光</p>
-                  </div>
-                </div>
-              </GlassCard>
+                </GlassCard>
+              </button>
             )}
           </div>
         </FadeIn>
@@ -243,7 +270,15 @@ export default function DashboardPage() {
           <GlassCard className="w-full max-w-sm p-6 animate-scale-in" variant="dark">
             <h3 className="text-lg font-semibold text-white mb-4">设置在一起的日期</h3>
             <div className="space-y-4">
-              <CustomDatePicker value={selectedDate} onChange={setSelectedDate} label="选择日期" />
+              <div>
+                <label className="block text-gray-400 text-xs mb-2 ml-1">选择日期</label>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="w-full px-4 py-3 bg-dark-600/50 border border-gray-700/50 rounded-xl text-white focus:outline-none focus:border-primary-teal/50 transition-all duration-300"
+                />
+              </div>
               <p className="text-gray-500 text-xs text-center">设置后将开始计算你们在一起的时间</p>
             </div>
             <div className="flex gap-3 mt-6">

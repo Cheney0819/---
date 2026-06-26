@@ -26,10 +26,11 @@ export async function verifyToken(token: string): Promise<{ id: string; username
       audience: 'shiguangjian-web',
     });
     const sub = payload.sub as string | undefined;
-    if (!sub || sub !== payload.id) {
+    const id = payload.id as string | undefined;
+    if (!sub || !id || sub !== id) {
       return null;
     }
-    return { id: payload.id as string, username: payload.username as string };
+    return { id, username: payload.username as string };
   } catch {
     return null;
   }

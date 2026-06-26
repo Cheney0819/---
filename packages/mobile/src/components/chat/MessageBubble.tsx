@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, Image, StyleSheet, Dimensions } from 'react-native';
 import { Message } from '@shiguangjian/shared/types';
 
 const { width } = Dimensions.get('window');
@@ -24,6 +24,12 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       ]}>
         {isDecrypting ? (
           <Text style={styles.decryptingText}>🔒 正在安全解密...</Text>
+        ) : message.contentType === 'image' && message.mediaUrls?.length > 0 ? (
+          <Image
+            source={{ uri: message.mediaUrls[0] }}
+            style={styles.image}
+            resizeMode="cover"
+          />
         ) : (
           <Text style={isMe ? styles.myText : styles.partnerText}>
             {message.content}
@@ -77,6 +83,11 @@ const styles = StyleSheet.create({
   imageBubble: {
     padding: 0,
     overflow: 'hidden',
+  },
+  image: {
+    width: '100%',
+    aspectRatio: 4 / 3,
+    borderRadius: 18,
   },
   myText: {
     color: '#0d1117',

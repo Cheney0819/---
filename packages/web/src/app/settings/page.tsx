@@ -7,21 +7,18 @@ import { FadeIn } from '@/components/motion';
 import { BackIcon, ShieldIcon, BellIcon, PaletteIcon, UserIcon, LogoutIcon } from '@/components/icons';
 import { GlassCard } from '@/components/ui/GlassCard';
 
+function getStored<T>(key: string, fallback: T): T {
+  if (typeof window === 'undefined') return fallback;
+  const saved = localStorage.getItem(key);
+  return saved !== null ? JSON.parse(saved) : fallback;
+}
+
 export default function SettingsPage() {
   const { user, isAuthenticated, logout } = useAuthStore();
   const router = useRouter();
-  const [notifications, setNotifications] = useState(() => {
-    const saved = localStorage.getItem('setting_notifications');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
-  const [sound, setSound] = useState(() => {
-    const saved = localStorage.getItem('setting_sound');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
-  const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem('setting_darkMode');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
+  const [notifications, setNotifications] = useState(() => getStored('setting_notifications', true));
+  const [sound, setSound] = useState(() => getStored('setting_sound', true));
+  const [darkMode, setDarkMode] = useState(() => getStored('setting_darkMode', true));
 
   // 持久化
   useEffect(() => { localStorage.setItem('setting_notifications', JSON.stringify(notifications)); }, [notifications]);

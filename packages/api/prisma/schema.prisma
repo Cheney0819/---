@@ -29,6 +29,7 @@ model User {
   sentCapsules  TimeCapsule[] @relation("CapsuleSender")
   recvCapsules  TimeCapsule[] @relation("CapsuleReceiver")
   diaryEntries  DiaryEntry[]
+  diaryComments DiaryComment[]
   uploadedMedia SharedMedia[]
   preKeys       PreKey[]
 }
@@ -124,40 +125,56 @@ model DiaryEntry {
   diaryId   String
   author    User        @relation(fields: [authorId], references: [id])
   authorId  String
+  comments  DiaryComment[]
 
   @@index([diaryId, createdAt])
 }
 
 // ============ 共享相册 ============
+// ============ 共享相册 ============
 model SharedAlbum {
-  id          String   @id @default(cuid())
+  id          String               @id @default(cuid())
   name        String
   description String?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime             @default(now())
 
-  pair        Pair     @relation(fields: [pairId], references: [id])
+  pair        Pair                 @relation(fields: [pairId], references: [id])
   pairId      String
   media       SharedMedia[]
+  categories  SharedAlbumCategory[]
+}
+
+// ============ 相册分类 ============
+model SharedAlbumCategory {
+  id        String         @id @default(cuid())
+  name      String
+  pairId    String
+  pair      SharedAlbum    @relation(fields: [pairId], references: [id])
+  createdAt DateTime       @default(now())
+  media     SharedMedia[]
 
   @@index([pairId])
 }
 
 // ============ 共享媒体 ============
 model SharedMedia {
-  id           String   @id @default(cuid())
-  url          String   // 加密后的 URL
+  id           String            @id @default(cuid())
+  url          String            // 加密后的 URL
   thumbnailUrl String?
-  mediaType    String   // image | video
+  mediaType    String            // image | video
   metadata     Json?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime          @default(now())
 
-  album        SharedAlbum @relation(fields: [albumId], references: [id])
+  album        SharedAlbum       @relation(fields: [albumId], references: [id])
   albumId      String
-  uploader     User        @relation(fields: [uploaderId], references: [id])
+  uploader     User              @relation(fields: [uploaderId], references: [id])
   uploaderId   String
+  category     SharedAlbumCategory? @relation(fields: [categoryId], references: [id])
+  categoryId   String?
 
   @@index([albumId, createdAt])
   @@index([uploaderId])
+  @@index([categoryId])
 }
 
 // ============ 预密钥 ============
@@ -172,4 +189,20 @@ model PreKey {
 
   @@unique([userId, keyId])
   @@index([userId])
+}
+
+// ============ 日记评论 ============
+model DiaryComment {
+  id           String      @id @default(cuid())
+  content      String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  diaryEntry   DiaryEntry  @relation(fields: [diaryEntryId], references: [id])
+  diaryEntryId String
+
+  author       User        @relation(fields: [authorId], references: [id])
+  authorId     String
+
+  @@index([diaryEntryId, createdAt])
 }

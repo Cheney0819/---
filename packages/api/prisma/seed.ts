@@ -13,7 +13,7 @@ async function main() {
       username: 'alice',
       displayName: 'Alice',
       email: 'alice@shiguangjian.app',
-      password: '$2b$12$dummy_hash_placeholder', // bcrypt hash
+      password: '$2a$12$9Jk3tGkPSURmv9a1Vw8CnOmMcuK4LDxpger0ABb/eP72ahuDyeoj.', // bcrypt hash
       inviteCode: 'A001',
       platform: 'web',
     },
@@ -26,7 +26,7 @@ async function main() {
       username: 'bob',
       displayName: 'Bob',
       email: 'bob@shiguangjian.app',
-      password: '$2b$12$dummy_hash_placeholder', // bcrypt hash
+      password: '$2a$12$9Jk3tGkPSURmv9a1Vw8CnOmMcuK4LDxpger0ABb/eP72ahuDyeoj.', // bcrypt hash
       inviteCode: 'B001',
       platform: 'web',
     },

@@ -32,6 +32,7 @@ model User {
   sentCapsules  TimeCapsule[] @relation("CapsuleSender")
   recvCapsules  TimeCapsule[] @relation("CapsuleReceiver")
   diaryEntries  DiaryEntry[]
+  diaryComments DiaryComment[]
   uploadedMedia SharedMedia[]
   preKeys       PreKey[]
 }
@@ -125,6 +126,7 @@ model DiaryEntry {
   diaryId   String
   author    User        @relation(fields: [authorId], references: [id])
   authorId  String
+  comments  DiaryComment[]
 
   @@index([diaryId, createdAt])
 }
@@ -171,4 +173,20 @@ model PreKey {
 
   @@unique([userId, keyId])
   @@index([userId])
+}
+
+// ============ 日记评论 ============
+model DiaryComment {
+  id           String      @id @default(cuid())
+  content      String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  diaryEntry   DiaryEntry  @relation(fields: [diaryEntryId], references: [id])
+  diaryEntryId String
+
+  author       User        @relation(fields: [authorId], references: [id])
+  authorId     String
+
+  @@index([diaryEntryId, createdAt])
 }

@@ -88,7 +88,7 @@ export default function SearchPage() {
                 type="text"
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
-                placeholder="输入8位识别码"
+                placeholder="搜索配对码来添加你的 ta"
                 maxLength={8}
                 className="flex-1 px-4 py-3 bg-dark-600/50 border border-gray-700/50 rounded-xl text-white text-center text-lg tracking-widest placeholder-gray-500 focus:outline-none focus:border-primary-teal/50 transition-all duration-300 font-mono"
               />

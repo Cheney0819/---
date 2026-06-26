@@ -11,6 +11,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '缺少 partnerId' }, { status: 400 });
     }
 
+    // 禁止配对自身
+    if (partnerId === auth.id) {
+      return NextResponse.json({ error: '不能与自己配对' }, { status: 400 });
+    }
+
     // 检查是否已有配对
     const existing = await prisma.pair.findFirst({
       where: { OR: [{ userAId: auth.id }, { userBId: auth.id }], status: 'active' },

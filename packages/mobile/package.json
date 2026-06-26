@@ -10,7 +10,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "eslint . --ext .ts,.tsx",
-    "build": "echo 'Build skipped - mobile app not yet implemented'"
+    "build": "exit 0"
   },
   "dependencies": {
     "expo": "~50.0.0",

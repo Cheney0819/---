@@ -33,7 +33,7 @@ export default function ChatPage() {
   const audioChunksRef = useRef<Blob[]>([]);
   const router = useRouter();
   const params = useParams();
-  const pairId = params.pairId as string;
+  const pairId = (params?.pairId as string) || "";
 
   const handleWebSocketMessage = (data: any) => {
     console.log('WebSocket message received:', data);
@@ -51,13 +51,16 @@ export default function ChatPage() {
       case 'user_online':
         if (data.userId !== user?.id) {
           setPartnerOnline(true);
-          setNotification(`${partner?.displayName || 'ta'} 上线了`);
         }
         break;
       case 'user_offline':
         if (data.userId !== user?.id) {
           setPartnerOnline(false);
-          setNotification(`${partner?.displayName || 'ta'} 离线了`);
+        }
+        break;
+      case 'partner_status':
+        if (data.partnerId === partner?.id) {
+          setPartnerOnline(data.online);
         }
         break;
       case 'typing':

@@ -28,6 +28,9 @@ const Dot: React.FC<DotProps> = ({ delay }) => {
         true
       )
     );
+    return () => {
+      translateY.value = 0;
+    };
   }, []);
 
   const animatedStyle = useAnimatedStyle(() => ({

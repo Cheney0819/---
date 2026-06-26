@@ -57,6 +57,11 @@ export const userApi = {
   
   search: (q: string, token: string) =>
     api(`/api/users/search?q=${encodeURIComponent(q)}`, { token }),
+
+  uploadAvatar: async (file: File, token: string): Promise<void> => {
+    const { url } = await uploadApi.file(file, token);
+    await api('/api/users/me', { method: 'PUT', body: { avatarUrl: url }, token });
+  },
 };
 
 // Pair API
@@ -186,11 +191,22 @@ export const uploadApi = {
       throw new Error('文件上传到 OSS 失败');
     }
     
-    return { url: uploadUrl, key, contentType: file.type };
+    // Construct public URL: https://{bucket}.{endpoint}/{key}
+    const ossEndpoint = process.env.NEXT_PUBLIC_OSS_ENDPOINT || 'oss-cn-chengdu.aliyuncs.com';
+    const ossBucket = process.env.NEXT_PUBLIC_OSS_BUCKET || 'web-80-1';
+    const publicUrl = `https://${ossBucket}.${ossEndpoint}/${key}`;
+    
+    return { url: publicUrl, key, contentType: file.type };
   },
   
   files: async (files: File[], token: string): Promise<Array<{ url: string; key: string; contentType: string }>> => {
     const results = await Promise.all(files.map(f => uploadApi.file(f, token)));
     return results;
   },
+};
+
+// Password API
+export const passwordApi = {
+  change: (data: { currentPassword: string; newPassword: string; confirmPassword: string }, token: string) =>
+    api('/api/users/me/password', { method: 'PUT', body: data, token }),
 };

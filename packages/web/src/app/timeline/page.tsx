@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
-import { messageApi, capsuleApi, pairApi } from '@/lib/api';
+import { messageApi, capsuleApi, pairApi, diaryApi } from '@/lib/api';
 import { FadeIn, SlideIn } from '@/components/motion';
 import { BackIcon, TimelineIcon, CapsuleIcon, DiaryIcon, MilestoneIcon } from '@/components/icons';
 import { GlassCard } from '@/components/ui/GlassCard';
@@ -15,6 +15,8 @@ interface TimelineItem {
   content: string;
   title?: string;
 }
+
+const MILESTONE_THRESHOLDS = [1, 10, 100, 500, 1000];
 
 export default function TimelinePage() {
   const { token, isAuthenticated } = useAuthStore();
@@ -38,49 +40,60 @@ export default function TimelinePage() {
       }
 
       const pairId = pairsData.pairs[0].id;
-      
-      const [messagesData, capsulesData] = await Promise.all([
+
+      const [messagesData, capsulesData, diariesData] = await Promise.all([
         messageApi.list(pairId, token!),
         capsuleApi.received(token!),
+        diaryApi.list(token!),
       ]);
 
       // 合并所有数据
       const allItems: TimelineItem[] = [];
 
-      // 添加消息
-      messagesData.messages?.forEach((msg: any) => {
-        allItems.push({
-          id: msg.id,
-          type: 'message',
-          timestamp: msg.createdAt,
-          content: msg.content,
-        });
+      // 按时间升序排列消息，用于里程碑检测
+      const sortedMessages = [...(messagesData.messages ?? [])].sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      );
+
+      // 添加消息（仅保留里程碑阈值处的消息，其余不加入时光轴）
+      sortedMessages.forEach((msg: any, idx: number) => {
+        const ordinal = idx + 1;
+        if (MILESTONE_THRESHOLDS.includes(ordinal)) {
+          allItems.push({
+            id: `msg-milestone-${ordinal}-${pairId}`,
+            type: 'milestone',
+            timestamp: msg.createdAt,
+            content: `第${ordinal}条消息`,
+            title: '里程碑',
+          });
+        }
       });
 
-      // 添加胶囊
+      // 添加已送达的胶囊
       capsulesData.capsules?.forEach((capsule: any) => {
+        if (capsule.status === 'delivered') {
+          allItems.push({
+            id: capsule.id,
+            type: 'capsule',
+            timestamp: capsule.deliveredAt ?? capsule.createdAt,
+            content: capsule.content,
+            title: '时间胶囊',
+          });
+        }
+      });
+
+      // 添加日记本
+      diariesData.diaries?.forEach((diary: any) => {
         allItems.push({
-          id: capsule.id,
-          type: 'capsule',
-          timestamp: capsule.createdAt,
-          content: capsule.content,
-          title: '时间胶囊',
+          id: `diary-${diary.id}`,
+          type: 'diary',
+          timestamp: diary.createdAt,
+          content: diary.title,
+          title: '日记本',
         });
       });
 
-      // 检测里程碑
-      const messageCount = messagesData.messages?.length || 0;
-      if (messageCount >= 100) {
-        allItems.push({
-          id: 'milestone-100',
-          type: 'milestone',
-          timestamp: new Date().toISOString(),
-          content: '第100条消息',
-          title: '里程碑',
-        });
-      }
-
-      // 按时间排序
+      // 按时间倒序排列
       allItems.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
       setItems(allItems);
@@ -166,7 +179,7 @@ export default function TimelinePage() {
                         {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
-                    
+
                     <GlassCard className="p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${getIconBg(item.type)}`}>

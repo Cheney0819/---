@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const albums = await prisma.sharedAlbum.findMany({
       where: { pairId: pair.id },
       include: {
-        media: { orderBy: { createdAt: 'desc' }, take: 1, select: { id: true, url: true, thumbnailUrl: true, mediaType: true } },
+        media: { orderBy: { createdAt: 'desc' }, take: 1, select: { id: true, url: true, thumbnailUrl: true, mediaType: true, category: { select: { id: true, name: true } }, uploader: { select: { id: true, username: true, displayName: true } } } },
         _count: { select: { media: true } },
       },
       orderBy: { createdAt: 'desc' },

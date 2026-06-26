@@ -73,7 +73,7 @@ export default function CapsulesPage() {
     try {
       const { pairs } = await pairApi.list(token!);
       if (!pairs || pairs.length === 0) {
-        setNotification('请先创建配对');
+        alert('请先创建配对');
         return;
       }
       
@@ -177,7 +177,7 @@ export default function CapsulesPage() {
             icon={<CapsuleIcon size={36} color="#ffd700" />}
             title={activeTab === 'received' ? '还没有收到时间胶囊' : '还没有发送时间胶囊'}
             description={activeTab === 'received' ? '等待 ta 给你写一封来自过去的信' : '给 ta 写一封来自未来的信'}
-            action={{ label: '创建时间胶囊', onClick: () => setShowCreateModal(true) }}
+
           />
         ) : (
           <div className="space-y-4">
@@ -255,29 +255,50 @@ export default function CapsulesPage() {
               </div>
               <div>
                 <label className="block text-gray-400 text-sm mb-2">送达时间</label>
-                <input
-                  type="datetime-local"
-                  value={newTriggerTime}
-                  onChange={(e) => setNewTriggerTime(e.target.value)}
-                  className="w-full px-4 py-3 bg-dark-600/50 border border-gray-700/50 rounded-xl text-white focus:outline-none focus:border-pink-400/50"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="date"
+                    value={newTriggerTime ? newTriggerTime.slice(0, 10) : ''}
+                    onChange={(e) => {
+                      const base = e.target.value;
+                      const timePart = newTriggerTime ? newTriggerTime.slice(11) : '00:00';
+                      setNewTriggerTime(base + 'T' + timePart);
+                    }}
+                    className="flex-1 px-4 py-3 bg-dark-600/50 border border-gray-700/50 rounded-xl text-white focus:outline-none focus:border-pink-400/50"
+                  />
+                  <input
+                    type="time"
+                    value={newTriggerTime ? newTriggerTime.slice(11) : '00:00'}
+                    onChange={(e) => {
+                      const datePart = newTriggerTime ? newTriggerTime.slice(0, 10) : '';
+                      setNewTriggerTime(datePart + 'T' + e.target.value);
+                    }}
+                    className="flex-1 px-4 py-3 bg-dark-600/50 border border-gray-700/50 rounded-xl text-white focus:outline-none focus:border-pink-400/50"
+                  />
+                </div>
+                {newTriggerTime && (
+                  <p className="text-xs text-pink-400 mt-1.5">
+                    📅 {new Date(newTriggerTime).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}
+                  </p>
+                )}
               </div>
             </div>
             <div className="flex gap-3 mt-6">
               <button
+                type="button"
                 onClick={() => setShowCreateModal(false)}
                 className="flex-1 py-3 bg-dark-600/50 text-gray-400 rounded-xl hover:bg-dark-600 transition-all active:scale-95"
               >
                 取消
               </button>
-              <GradientButton
+              <button
+                type="button"
                 onClick={handleCreate}
                 disabled={!newContent.trim() || !newTriggerTime || creating}
-                loading={creating}
-                className="flex-1"
+                className="flex-1 py-3 font-semibold rounded-xl bg-gradient-to-r from-pink-400 to-rose-400 text-white hover:shadow-lg hover:shadow-pink-400/25 transition-all duration-300 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                创建
-              </GradientButton>
+                {creating ? '创建中...' : '创建'}
+              </button>
             </div>
           </GlassCard>
         </div>

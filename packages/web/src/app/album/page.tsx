@@ -15,9 +15,13 @@ interface Photo {
   id: string;
   url: string;
   thumbnailUrl?: string;
+  mediaType?: string;
+  category?: { id: string; name: string } | null;
   uploader: { username: string; displayName?: string };
   createdAt: string;
 }
+
+type CategoryFilter = 'all' | '旅行' | '日常' | '纪念日';
 
 export default function AlbumPage() {
   const { token, isAuthenticated } = useAuthStore();
@@ -25,8 +29,20 @@ export default function AlbumPage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+
+  const categories: { key: CategoryFilter; label: string }[] = [
+    { key: 'all', label: '全部' },
+    { key: '旅行', label: '旅行' },
+    { key: '日常', label: '日常' },
+    { key: '纪念日', label: '纪念日' },
+  ];
+
+  const filteredPhotos = categoryFilter === 'all'
+    ? photos
+    : photos.filter(p => p.category?.name === categoryFilter);
 
   useEffect(() => {
     if (!isAuthenticated) { router.push('/login'); return; }
@@ -49,9 +65,18 @@ export default function AlbumPage() {
       const { albums } = await albumApi.list(token);
       if (albums && albums.length > 0) {
         // 直接通过 REST API 添加照片到相册
-        const { media } = await albumApi.addPhoto(albums[0].id, result.url, token);
-        setPhotos(media || [result.url]);
-        loadAlbum();
+        const { photo } = await albumApi.addPhoto(albums[0].id, result.url, token);
+        if (photo) {
+          loadAlbum();
+        } else {
+          // Fallback: if no photo returned, use the URL directly
+          setPhotos(prev => [...prev, {
+            id: Date.now().toString(),
+            url: result.url,
+            uploader: { username: '' },
+            createdAt: new Date().toISOString(),
+          }]);
+        }
       }
     } catch (err: any) {
       console.error('Upload error:', err);
@@ -113,21 +138,38 @@ export default function AlbumPage() {
       </header>
 
       <div className="max-w-lg mx-auto px-5 py-4">
+        {/* Category Tabs */}
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+          {categories.map(cat => (
+            <button
+              key={cat.key}
+              onClick={() => setCategoryFilter(cat.key)}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all card-hover ${
+                categoryFilter === cat.key
+                  ? 'bg-white/20 text-white shadow-lg'
+                  : 'bg-dark-600/40 text-gray-400 hover:text-white'
+              }`}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+
         {loading ? (
           <div className="grid grid-cols-3 gap-2">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <div key={i} className="aspect-square bg-dark-600/30 rounded-xl animate-pulse" />
             ))}
           </div>
-        ) : photos.length === 0 ? (
+        ) : filteredPhotos.length === 0 ? (
           <EmptyState
             icon={<AlbumIcon size={36} color="#4ade80" />}
-            title="还没有照片"
-            description="上传你们的照片"
+            title={categoryFilter === 'all' ? '还没有照片' : '该分类下暂无照片'}
+            description={categoryFilter === 'all' ? '上传你们的照片' : '切换到其他分类查看'}
           />
         ) : (
           <div className="grid grid-cols-3 gap-2">
-            {photos.map((photo, index) => (
+            {filteredPhotos.map((photo, index) => (
               <ScaleIn key={photo.id} delay={index * 50}>
                 <div className={`aspect-square rounded-xl overflow-hidden relative group cursor-pointer bg-gradient-to-br ${photoColors[index % photoColors.length]} card-hover`}>
                   <img 

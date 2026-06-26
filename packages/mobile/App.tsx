@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
+
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -27,12 +27,12 @@ export default function App() {
             screenOptions={{
               headerStyle: { backgroundColor: '#0d1117' },
               headerTintColor: '#fff',
+              statusBarStyle: 'light',
             }}
           >
             <Stack.Screen name="Home" component={HomeScreen} options={{ title: '时光笺' }} />
           </Stack.Navigator>
         </NavigationContainer>
-        <StatusBar style="light" />
       </SafeAreaProvider>
     </QueryClientProvider>
   );

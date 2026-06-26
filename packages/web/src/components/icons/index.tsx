@@ -201,3 +201,12 @@ export const MicIcon: React.FC<IconProps> = ({ size = 24, color = 'currentColor'
     <line x1="8" y1="23" x2="16" y2="23"/>
   </svg>
 );
+
+// 图片图标（与 PhotoIcon 类似，用于聊天输入框）
+export const ImageIcon: React.FC<IconProps> = ({ size = 24, color = 'currentColor', className }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <rect x="3" y="3" width="18" height="18" rx="2"/>
+    <circle cx="8.5" cy="8.5" r="1.5"/>
+    <path d="M21 15l-5-5L5 21"/>
+  </svg>
+);

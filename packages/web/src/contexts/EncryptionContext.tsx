@@ -37,17 +37,21 @@ export function EncryptionProvider({ children }: { children: React.ReactNode }) 
       
       if (existingKey) {
         setPublicKey(existingKey);
+        // 已有公钥，上传到服务器
+        const token = useAuthStore.getState().token;
+        if (token) {
+          await keysApi.uploadPublicKey(existingKey, token);
+        }
       } else {
         // 生成新密钥对
         const { publicKey: newPublicKey } = await initEncryption(user.id);
         setPublicKey(newPublicKey);
         localStorage.setItem(`public_key_${user.id}`, newPublicKey);
-      }
-      
-      // 确保公钥已上传到服务器
-      const token = useAuthStore.getState().token;
-      if (token && publicKey) {
-        await keysApi.uploadPublicKey(publicKey, token);
+        // 新生成的公钥，上传到服务器
+        const token = useAuthStore.getState().token;
+        if (token) {
+          await keysApi.uploadPublicKey(newPublicKey, token);
+        }
       }
       
       setIsInitialized(true);

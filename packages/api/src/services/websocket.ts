@@ -1,4 +1,5 @@
 import WebSocket, { WebSocket as WS } from 'ws';
+import { jwtVerify } from 'jose';
 import { FastifyInstance } from 'fastify';
 import { prisma } from '../index';
 import { WS_CONSTANTS } from '../constants';
@@ -15,7 +16,33 @@ const MAX_WS_CONNECTIONS = 10000;
 // 全局连接计数器
 let totalConnections = 0;
 
+// 手动验证 JWT，确保 issuer/audience 校验生效
+async function verifyWsToken(token: string): Promise<{ id: string; username: string } | null> {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) return null;
+  try {
+    const { payload } = await jwtVerify(token, new TextEncoder().encode(secret), {
+      issuer: 'shiguangjian',
+      audience: 'shiguangjian-api',
+      algorithms: ['HS256'],
+    });
+    const sub = payload.sub as string | undefined;
+    if (!sub || sub !== (payload.id as string)) return null;
+    return { id: sub, username: (payload.username as string) || '' };
+  } catch {
+    return null;
+  }
+}
+
+// 跟踪上一次的心跳定时器，防止热重载泄漏
+let _currentHeartbeatInterval: ReturnType<typeof setInterval> | null = null;
+
 export function setupWebSocket(app: FastifyInstance) {
+  // 清理之前的定时器（防止热重载泄漏）
+  if (_currentHeartbeatInterval) {
+    clearInterval(_currentHeartbeatInterval);
+  }
+  
   // 定期扫描清理超时连接
   const heartbeatInterval = setInterval(() => {
     const now = Date.now();
@@ -36,9 +63,12 @@ export function setupWebSocket(app: FastifyInstance) {
     }
   }, WS_CONSTANTS.HEARTBEAT_INTERVAL_MS);
 
+  _currentHeartbeatInterval = heartbeatInterval;
+  
   // 停止服务时清理定时器
   app.addHook('onClose', () => {
     clearInterval(heartbeatInterval);
+    _currentHeartbeatInterval = null;
   });
 
   app.get('/ws', { websocket: true } as any, (socket: any, request: any) => {
@@ -80,7 +110,12 @@ export function setupWebSocket(app: FastifyInstance) {
             }
 
             try {
-              const decoded = app.jwt.verify(data.token) as { id: string; username: string };
+              const decoded = await verifyWsToken(data.token);
+              if (!decoded) {
+                socket.send(JSON.stringify({ type: 'auth_error', error: 'token 无效' }));
+                socket.close();
+                return;
+              }
               userId = decoded.id;
 
               // 支持多设备同时在线
@@ -92,6 +127,19 @@ export function setupWebSocket(app: FastifyInstance) {
 
               socket.send(JSON.stringify({ type: 'auth_success', userId }));
               broadcastToPartner(userId, { type: 'user_online', userId });
+              // 认证成功后，告知对方（partner）的在线状态
+              const myPairs = await prisma.pair.findMany({
+                where: { status: 'active', OR: [{ userAId: userId }, { userBId: userId }] },
+              });
+              for (const pair of myPairs) {
+                const partnerId = pair.userAId === userId ? pair.userBId : pair.userAId;
+                const partnerIsOnline = onlineUsers.has(partnerId) && onlineUsers.get(partnerId)!.size > 0;
+                socket.send(JSON.stringify({
+                  type: 'partner_status',
+                  partnerId,
+                  online: partnerIsOnline,
+                }));
+              }
             } catch (error) {
               socket.send(JSON.stringify({ type: 'auth_error', error: 'token 无效' }));
               socket.close();

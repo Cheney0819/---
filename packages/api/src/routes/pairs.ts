@@ -27,6 +27,11 @@ export async function pairRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: '请填写对方的邀请码' });
     }
     
+    // 硬性检查：不能配对自身
+    if (resolvedPartnerId === userId) {
+      return reply.status(400).send({ error: '不能与自己配对' });
+    }
+    
     // 1对1限制：检查当前用户是否已配对
     const myExistingPair = await prisma.pair.findFirst({
       where: {

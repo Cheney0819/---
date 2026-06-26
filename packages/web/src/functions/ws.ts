@@ -2,29 +2,18 @@
 // 在 EdgeOne 上运行，提供实时聊天推送
 
 import { PrismaClient } from '@prisma/client';
-import { verify } from 'jose';
 
 const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || 'shiguangjian-secret-key-2024';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error('JWT_SECRET environment variable is required');
 
 // 在线用户映射
-const onlineUsers = new Map<string, Set<WebSocket>>();
+const onlineUsers = new Map<string, Set<any>>();
 
 // 心跳超时阈值
 const HEARTBEAT_TIMEOUT_MS = 60000;
 const MAX_WS_CONNECTIONS = 10000;
 let totalConnections = 0;
-
-// 获取 JWT Secret key
-function getJwtKey(): CryptoKey {
-  return crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(JWT_SECRET),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['verify']
-  );
-}
 
 // 验证 JWT token（用 Web Crypto API）
 async function verifyToken(token: string): Promise<{ id: string; username: string } | null> {
@@ -32,15 +21,21 @@ async function verifyToken(token: string): Promise<{ id: string; username: strin
     const parts = token.split('.');
     if (parts.length !== 3) return null;
 
-    const header = JSON.parse(new TextDecoder().decode(base64UrlDecode(parts[0])));
+    const _header = JSON.parse(new TextDecoder().decode(base64UrlDecode(parts[0])));
     const payload = JSON.parse(new TextDecoder().decode(base64UrlDecode(parts[1])));
     const signature = base64UrlDecode(parts[2]);
 
-    const key = await getJwtKey();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(JWT_SECRET),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['verify']
+    );
     const valid = await crypto.subtle.verify(
       'HMAC',
       key,
-      signature,
+      signature as unknown as ArrayBuffer,
       new TextEncoder().encode(`${parts[0]}.${parts[1]}`)
     );
 
@@ -58,11 +53,11 @@ async function verifyToken(token: string): Promise<{ id: string; username: strin
 function base64UrlDecode(str: string): Uint8Array {
   let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
   while (base64.length % 4 !== 0) base64 += '=';
-  return new Uint8Array(atob(base64).split('').map(c => c.charCodeAt(0)));
+  return new Uint8Array(atob(base64).split('').map((c) => c.charCodeAt(0)));
 }
 
 export default {
-  async fetch(request: Request, env: any, ctx: any): Promise<Response> {
+  async fetch(request: Request, _env: unknown, _ctx: unknown): Promise<Response> {
     const url = new URL(request.url);
 
     // 只处理 /ws 路径
@@ -75,20 +70,15 @@ export default {
       return new Response('Expected WebSocket', { status: 400 });
     }
 
-    const { 0: client, 1: server } = new WebSocketPair();
-    server.accept();
-
-    // 处理连接
-    handleConnection(server, client);
-
-    return new Response(null, {
-      status: 101,
-      webSocket: client,
+    // EdgeOne Pages 不支持 WebSocketPair，降级为 HTTP 响应
+    // 生产环境需通过 EdgeOne 原生 WebSocket 功能处理
+    return new Response('WebSocket not supported in this environment', {
+      status: 501,
     });
   },
 };
 
-async function handleConnection(ws: WebSocket, client: WebSocket) {
+async function handleConnection(ws: any, _client: any) {
   if (totalConnections >= MAX_WS_CONNECTIONS) {
     ws.send(JSON.stringify({ type: 'error', error: '服务器连接数已满，请稍后重试' }));
     ws.close();
@@ -101,12 +91,12 @@ async function handleConnection(ws: WebSocket, client: WebSocket) {
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
   const send = (data: any) => {
-    if (ws.readyState === WebSocket.OPEN) {
+    if (ws.readyState === 1) {
       ws.send(JSON.stringify(data));
     }
   };
 
-  ws.onmessage = async (event) => {
+  ws.onmessage = async (event: any) => {
     try {
       const data = JSON.parse(event.data as string);
 
@@ -137,7 +127,7 @@ async function handleConnection(ws: WebSocket, client: WebSocket) {
 
             // 启动心跳
             heartbeatTimer = setInterval(() => {
-              if (ws.readyState === WebSocket.OPEN) {
+              if (ws.readyState === 1) {
                 ws.send(JSON.stringify({ type: 'ping' }));
               }
             }, 30000);
@@ -245,7 +235,7 @@ async function sendToUser(userId: string, data: any) {
   const sockets = onlineUsers.get(userId);
   if (sockets) {
     for (const socket of sockets) {
-      if (socket.readyState === WebSocket.OPEN) {
+      if (socket.readyState === 1) {
         socket.send(JSON.stringify(data));
       }
     }
